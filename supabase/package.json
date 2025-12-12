@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "local:start": "supabase start",
+    "local:reset": "supabase stop --no-backup"
+  },
+  "devDependencies": {
+    "supabase": "^2.65.8"
+  }
+}
