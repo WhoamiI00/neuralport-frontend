@@ -41,7 +41,7 @@
                     <Transition name="form-slide" mode="out-in">
                         <form class="auth-form" @submit.prevent="handleLogin">
                             <h1 class="form-title">VR Access</h1>
-                            <p class="form-subtitle">Authenticate with Device ID and PIN</p>
+                            <p class="form-subtitle">{{ showAdminSetup ? 'Set Admin Password' : 'Authenticate with Device ID and PIN' }}</p>
 
                             <div class="input-group">
                                 <input 
@@ -67,6 +67,17 @@
                                 <span class="input-highlight"></span>
                             </div>
 
+                            <div v-if="showAdminSetup" class="input-group">
+                                <input 
+                                    type="password" 
+                                    v-model="adminPassword"
+                                    placeholder=" "
+                                    required
+                                    autocomplete="off"
+                                />
+                                <label>Admin Password</label>
+                                <span class="input-highlight"></span>
+                            </div>
 
 
                             <button 
@@ -140,13 +151,33 @@ const loginForm = reactive({
     pin: ''
 })
 
+const showAdminSetup = ref(false)
+const adminPassword = ref('')
+
 // Handle login submit
 async function handleLogin() {
     error.value = ''
     loading.value = true
     try {
-        await authStore.signIn(loginForm.deviceId, loginForm.pin)
-        router.push((route.query.redirect as string) || '/dashboard')
+        const result = await authStore.signIn(
+            loginForm.deviceId, 
+            loginForm.pin,
+            showAdminSetup.value ? adminPassword.value : undefined
+        )
+        
+        if (result.needsAdminSetup) {
+            showAdminSetup.value = true
+            error.value = 'First user must set an admin password'
+            loading.value = false
+            return
+        }
+        
+        // Redirect based on user role
+        if (authStore.user?.is_admin) {
+            router.push('/dashboard')  // Admin goes to dashboard for user management
+        } else {
+            router.push((route.query.redirect as string) || '/account')  // Regular users go to their account/training
+        }
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
     } finally {

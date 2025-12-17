@@ -106,8 +106,7 @@ const options: OptionItem[] = [
   {
     id: 'logout',
     label: 'Logout',
-    icon: 'mdi mdi-logout',
-    action: () => emit('logout')
+    icon: 'mdi mdi-logout'
   }
 ]
 

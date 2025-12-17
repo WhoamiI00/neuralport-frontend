@@ -36,7 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = false
   }
 
-  async function signIn(deviceId: string, pin: string) {
+  async function signIn(deviceId: string, pin: string, adminPassword?: string) {
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
@@ -46,6 +46,7 @@ export const useAuthStore = defineStore('auth', () => {
         deviceId: deviceId,
         username: pin,
         password: pin,
+        ...(adminPassword && { adminPassword })
       }),
     })
 
@@ -55,12 +56,20 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     const data = await response.json()
+    
+    // Check if admin setup is needed
+    if (data.needsAdminSetup) {
+      return { needsAdminSetup: true, message: data.message }
+    }
+    
     token.value = data.token
     user.value = data.user
     
     // Persist to localStorage
     localStorage.setItem('auth_token', data.token)
     localStorage.setItem('auth_user', JSON.stringify(data.user))
+    
+    return { needsAdminSetup: false }
   }
 
   async function signOut() {
