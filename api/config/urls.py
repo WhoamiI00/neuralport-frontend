@@ -3,6 +3,8 @@ from django.urls import path
 from django.db import connection
 
 from users.views import login, logout, me, get_authenticated_user
+from users.storage_api import insert_storage, get_storage, list_scores, latest_score, get_user, get_users_by_group
+from users.admin_api import create_user, rename_user, update_avatar
 
 
 def health(request):
@@ -70,10 +72,27 @@ def profiles(request, user_id: int):
 
 
 urlpatterns = [
-    path("health", health),
-    path("profiles/<int:user_id>", profiles),
+    path("health/", health),
+    path("api/profiles/<int:user_id>/", profiles),
     # Authentication endpoints
-    path("auth/login", login, name="login"),
-    path("auth/logout", logout, name="logout"),
-    path("auth/me", me, name="me"),
+    path("api/auth/login", login, name="login"),
+    path("api/auth/logout", logout, name="logout"),
+    path("api/auth/me", me, name="me"),
+    
+    # Storage API (matching old Scala routes)
+    path("api/storage", insert_storage, name="insert_storage"),
+    path("api/storage/<str:key>", get_storage, name="get_storage"),
+    
+    # Scores API
+    path("api/tenants/<int:tenant_id>/users/<int:user_id>/scores", list_scores, name="list_scores"),
+    path("api/tenants/<int:tenant_id>/users/<int:user_id>/latest", latest_score, name="latest_score"),
+    
+    # Users API
+    path("api/users/<int:user_id>", get_user, name="get_user"),
+    path("api/group/<int:link_id>", get_users_by_group, name="get_users_by_group"),
+    
+    # Admin API
+    path("api/admin/users", create_user, name="create_user"),
+    path("api/admin/rename", rename_user, name="rename_user"),
+    path("api/admin/updateAvatar", update_avatar, name="update_avatar"),
 ]
