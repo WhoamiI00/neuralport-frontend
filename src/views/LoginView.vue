@@ -146,7 +146,7 @@ async function handleLogin() {
     loading.value = true
     try {
         await authStore.signIn(loginForm.deviceId, loginForm.pin)
-        router.push((route.query.redirect as string) || '/account')
+        router.push((route.query.redirect as string) || '/dashboard')
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
     } finally {

@@ -1,65 +1,80 @@
-<script setup lang="ts">
-import { RouterView } from 'vue-router'
-import { useAuthStore } from './stores/auth'
-
-const authStore = useAuthStore()
-authStore.initialize()
-</script>
-
 <template>
-  <div id="app">
-    <nav v-if="authStore.isAuthenticated">
-      <router-link to="/">Home</router-link>
-      <router-link to="/account">Account</router-link>
-    </nav>
-    <RouterView />
-  </div>
+    <div class="app-container">
+        <transition name="fade">
+            <div class="splash-screen" v-if="splashScreen">
+                <div class="wrap">
+                    <img src="./assets/images/logo_ZEP.png" class="logo" alt="logo" />
+                    <img src="/Ripple-2s-200px.gif" alt="loading-image" />
+                </div>
+            </div>
+        </transition>
+
+        <router-view v-slot="{ Component }">
+            <transition name="fade" mode="out-in">
+                <component :is="Component" />
+            </transition>
+        </router-view>
+    </div>
 </template>
 
-<style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+<script lang="ts">
+import { defineComponent } from "vue"
+import { detect } from "detect-browser"
+const browser = detect()
+import { useMainStore } from "./stores/main"
+
+export default defineComponent({
+    name: "App",
+    computed: {
+        splashScreen() {
+            return useMainStore().splashScreen
+        }
+    },
+    created() {
+        if (browser && browser.name) document.getElementsByTagName("html")[0].classList.add(browser.name)
+    }
+})
+</script>
+
+
+<style lang="scss">
+@import "./assets/scss/_variables";
+
+.app-container {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-  background-color: #f8f9fa;
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+
+    .wrap {
+        text-align: center;
+
+        .logo {
+            max-width: 200px;
+            margin-bottom: 20px;
+        }
+    }
 }
 
-#app {
-  min-height: 100vh;
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
 }
 
-nav {
-  background-color: #fff;
-  padding: 15px 30px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  display: flex;
-  gap: 20px;
-}
-
-nav a {
-  color: #42b983;
-  text-decoration: none;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-}
-
-nav a:hover {
-  background-color: #f0f0f0;
-}
-
-nav a.router-link-active {
-  background-color: #42b983;
-  color: white;
-}
-
-h1, h2 {
-  color: #2c3e50;
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
 </style>

@@ -1,0 +1,208 @@
+// =====================================================
+// ZEN EYE PRO - Global Theme System
+// Light/Dark mode with pastel gradient aesthetic
+// =====================================================
+
+// =====================================================
+// CSS CUSTOM PROPERTIES (Variables)
+// =====================================================
+
+:root {
+    // ===== LIGHT MODE (Default) =====
+    
+    // RGB Values for alpha compositing
+    --zen-rgb-teal: 168, 237, 234;
+    --zen-rgb-peach: 254, 214, 227;
+    --zen-rgb-cream: 245, 230, 202;
+    
+    // Gradient Colors
+    --zen-gradient-start: #a8edea;
+    --zen-gradient-mid: #fed6e3;
+    --zen-gradient-end: #f5e6ca;
+    
+    // Background
+    --zen-bg-gradient: linear-gradient(135deg, var(--zen-gradient-start) 0%, var(--zen-gradient-mid) 50%, var(--zen-gradient-end) 100%);
+    --zen-bg-primary: #f3f7fa;
+    --zen-bg-secondary: rgba(255, 255, 255, 0.7);
+    --zen-bg-tertiary: rgba(255, 255, 255, 0.5);
+    
+    // Surfaces (Cards, Modals, etc.)
+    --zen-surface: rgba(255, 255, 255, 0.85);
+    --zen-surface-elevated: rgba(255, 255, 255, 0.95);
+    --zen-surface-hover: rgba(255, 255, 255, 1);
+    --zen-surface-glass: rgba(255, 255, 255, 0.25);
+    
+    // Text Colors
+    --zen-text-heading: #1f2937;
+    --zen-text-primary: #2d3748;
+    --zen-text-secondary: #4b5563;
+    --zen-text-muted: #718096;
+    --zen-text-disabled: #9ca3af;
+    --zen-text-inverse: #ffffff;
+    
+    // Border Colors
+    --zen-border-light: rgba(0, 0, 0, 0.08);
+    --zen-border-medium: rgba(0, 0, 0, 0.12);
+    --zen-border-strong: rgba(0, 0, 0, 0.2);
+    --zen-border-glass: rgba(255, 255, 255, 0.4);
+    
+    // Accent Colors
+    --zen-accent-teal: #a8edea;
+    --zen-accent-teal-dark: #5dd6d0;
+    --zen-accent-peach: #fed6e3;
+    --zen-accent-peach-dark: #f8a5be;
+    --zen-accent-cream: #f5e6ca;
+    --zen-accent-primary: #5f8fdf;
+    --zen-accent-success: #13ce66;
+    --zen-accent-warning: #f7ba2a;
+    --zen-accent-danger: #ec205f;
+    --zen-accent-info: #909399;
+    
+    // Shadows
+    --zen-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --zen-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+    --zen-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+    --zen-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.15);
+    --zen-shadow-glow: 0 0 20px rgba(168, 237, 234, 0.3);
+    --zen-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
+    
+    // Input Colors
+    --zen-input-bg: rgba(255, 255, 255, 0.8);
+    --zen-input-border: rgba(168, 237, 234, 0.4);
+    --zen-input-border-focus: #a8edea;
+    --zen-input-placeholder: #9ca3af;
+    
+    // Button Colors
+    --zen-btn-primary-bg: rgba(255, 255, 255, 0.9);
+    --zen-btn-primary-text: #2d3748;
+    --zen-btn-primary-border: transparent;
+    --zen-btn-primary-hover-bg: rgba(168, 237, 234, 0.3);
+    --zen-btn-primary-hover-border: rgba(168, 237, 234, 0.5);
+    
+    // Navbar/Sidebar
+    --zen-nav-bg: rgba(255, 255, 255, 0.6);
+    --zen-nav-item-hover: rgba(168, 237, 234, 0.3);
+    --zen-nav-item-active: rgba(168, 237, 234, 0.5);
+    
+    // Floating Blocks
+    --zen-block-bg: rgba(255, 255, 255, 0.5);
+    --zen-block-border: rgba(255, 255, 255, 0.6);
+    --zen-block-glow: rgba(168, 237, 234, 0.4);
+    
+    // Scrollbar
+    --zen-scrollbar-track: rgba(0, 0, 0, 0.05);
+    --zen-scrollbar-thumb: rgba(0, 0, 0, 0.15);
+    --zen-scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+    
+    // Overlay
+    --zen-overlay: rgba(0, 0, 0, 0.4);
+    
+    // Transitions
+    --zen-transition-fast: 0.15s ease;
+    --zen-transition-normal: 0.3s ease;
+    --zen-transition-slow: 0.5s ease;
+    --zen-transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    
+    // Border Radius
+    --zen-radius-sm: 6px;
+    --zen-radius-md: 10px;
+    --zen-radius-lg: 16px;
+    --zen-radius-xl: 20px;
+    --zen-radius-full: 9999px;
+    
+    // Backdrop Blur
+    --zen-blur-sm: blur(8px);
+    --zen-blur-md: blur(12px);
+    --zen-blur-lg: blur(20px);
+}
+
+// ===== DARK MODE =====
+.dark-mode,
+[data-theme="dark"] {
+    // RGB Values for alpha compositing (brighter for dark mode)
+    --zen-rgb-teal: 45, 212, 191;
+    --zen-rgb-peach: 251, 113, 133;
+    --zen-rgb-cream: 252, 211, 77;
+    
+    // Gradient Colors (Dark)
+    --zen-gradient-start: #0f172a;
+    --zen-gradient-mid: #1e293b;
+    --zen-gradient-end: #334155;
+    
+    // Background
+    --zen-bg-gradient: linear-gradient(135deg, var(--zen-gradient-start) 0%, var(--zen-gradient-mid) 50%, var(--zen-gradient-end) 100%);
+    --zen-bg-primary: #0f172a;
+    --zen-bg-secondary: rgba(30, 41, 59, 0.8);
+    --zen-bg-tertiary: rgba(30, 41, 59, 0.6);
+    
+    // Surfaces (Cards, Modals, etc.)
+    --zen-surface: rgba(30, 41, 59, 0.85);
+    --zen-surface-elevated: rgba(30, 41, 59, 0.95);
+    --zen-surface-hover: rgba(51, 65, 85, 0.9);
+    --zen-surface-glass: rgba(30, 41, 59, 0.5);
+    
+    // Text Colors
+    --zen-text-heading: #f1f5f9;
+    --zen-text-primary: #e2e8f0;
+    --zen-text-secondary: #cbd5e1;
+    --zen-text-muted: #94a3b8;
+    --zen-text-disabled: #64748b;
+    --zen-text-inverse: #1f2937;
+    
+    // Border Colors
+    --zen-border-light: rgba(255, 255, 255, 0.08);
+    --zen-border-medium: rgba(255, 255, 255, 0.12);
+    --zen-border-strong: rgba(255, 255, 255, 0.2);
+    --zen-border-glass: rgba(255, 255, 255, 0.15);
+    
+    // Accent Colors (Brighter for dark mode)
+    --zen-accent-teal: #2dd4bf;
+    --zen-accent-teal-dark: #14b8a6;
+    --zen-accent-peach: #fb7185;
+    --zen-accent-peach-dark: #f43f5e;
+    --zen-accent-cream: #fcd34d;
+    --zen-accent-primary: #60a5fa;
+    --zen-accent-success: #34d399;
+    --zen-accent-warning: #fbbf24;
+    --zen-accent-danger: #f87171;
+    --zen-accent-info: #94a3b8;
+    
+    // Shadows
+    --zen-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --zen-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --zen-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --zen-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --zen-shadow-glow: 0 0 20px rgba(45, 212, 191, 0.2);
+    --zen-shadow-card: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    
+    // Input Colors
+    --zen-input-bg: rgba(15, 23, 42, 0.8);
+    --zen-input-border: rgba(45, 212, 191, 0.4);
+    --zen-input-border-focus: #2dd4bf;
+    --zen-input-placeholder: #64748b;
+    
+    // Button Colors
+    --zen-btn-primary-bg: rgba(51, 65, 85, 0.8);
+    --zen-btn-primary-text: #f1f5f9;
+    --zen-btn-primary-border: rgba(45, 212, 191, 0.3);
+    --zen-btn-primary-hover-bg: rgba(45, 212, 191, 0.2);
+    --zen-btn-primary-hover-border: rgba(45, 212, 191, 0.5);
+    
+    // Navbar/Sidebar
+    --zen-nav-bg: rgba(30, 41, 59, 0.8);
+    --zen-nav-item-hover: rgba(45, 212, 191, 0.2);
+    --zen-nav-item-active: rgba(45, 212, 191, 0.3);
+    
+    // Floating Blocks
+    --zen-block-bg: rgba(255, 255, 255, 0.08);
+    --zen-block-border: rgba(255, 255, 255, 0.15);
+    --zen-block-glow: rgba(45, 212, 191, 0.2);
+    
+    // Scrollbar
+    --zen-scrollbar-track: rgba(255, 255, 255, 0.05);
+    --zen-scrollbar-thumb: rgba(255, 255, 255, 0.15);
+    --zen-scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+    
+    // Overlay
+    --zen-overlay: rgba(0, 0, 0, 0.6);
+}

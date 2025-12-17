@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 interface User {
   id: string
   pin: string
   device_id: string
   tenant_id: string
+  is_admin?: boolean
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -36,13 +37,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signIn(deviceId: string, pin: string) {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        deviceId,
+        deviceId: deviceId,
         username: pin,
         password: pin,
       }),
@@ -65,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function signOut() {
     if (token.value) {
       try {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token.value}`,
@@ -87,7 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
       throw new Error('Not authenticated')
     }
 
-    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
       },

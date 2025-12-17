@@ -22,6 +22,9 @@
       <router-link to="/account">
         <button>Go to Account</button>
       </router-link>
+      <router-link to="/demo">
+        <button class="secondary">API Demo</button>
+      </router-link>
     </div>
   </div>
 </template>

@@ -9,10 +9,30 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mdi/font": "^7.4.47",
     "@supabase/supabase-js": "^2.87.1",
+    "animate.css": "^4.1.1",
+    "balloon-css": "^1.2.0",
+    "chart.js": "^4.5.1",
+    "chartkick": "^5.0.1",
+    "date-fns": "^4.1.0",
+    "detect-browser": "^5.3.0",
+    "echarts": "^6.0.0",
+    "element-plus": "^2.12.0",
+    "flex.box": "^3.4.4",
+    "highlight.js": "^11.11.1",
+    "lodash": "^4.17.21",
+    "mavon-editor": "^2.10.4",
     "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
+    "v-click-outside": "^3.2.0",
+    "v-viewer": "^3.0.22",
+    "viewerjs": "^1.11.7",
     "vue": "^3.5.24",
-    "vue-router": "^4.6.3"
+    "vue-chartkick": "^1.1.0",
+    "vue-i18n": "^11.2.2",
+    "vue-router": "^4.6.3",
+    "vue3-highlightjs": "^1.0.5"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
