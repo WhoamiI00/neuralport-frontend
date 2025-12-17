@@ -38,6 +38,7 @@ def insert_storage(request):
             row = cursor.fetchone()
             
             # If data contains a score, insert into storage_scores
+            score_value = None
             if 'stress' in data or 'score' in data:
                 score_value = data.get('stress') or data.get('score')
                 if score_value is not None:
@@ -46,11 +47,16 @@ def insert_storage(request):
                         VALUES (%s, %s, %s, %s, NOW())
                     """, [tenant.id, user.id, key, float(score_value)])
         
-        return JsonResponse({
+        response_data = {
             "id": row[0],
             "key": row[1],
             "created_at": row[2].isoformat()
-        }, status=201)
+        }
+        
+        if score_value is not None:
+            response_data["score"] = float(score_value)
+        
+        return JsonResponse(response_data, status=201)
         
     except Exception as e:
         print(f"Error inserting storage: {e}")

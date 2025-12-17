@@ -5,7 +5,8 @@ class Tenant(models.Model):
     """Represents a VR device identified by deviceId"""
     id = models.BigAutoField(primary_key=True)
     device_id = models.TextField(unique=True, db_index=True)
-    name = models.TextField()
+    name = models.TextField(null=True, blank=True)
+    admin_password = models.TextField(null=True, blank=True)  # Set by first user
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
