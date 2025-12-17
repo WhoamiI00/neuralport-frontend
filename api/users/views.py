@@ -225,20 +225,35 @@ def get_authenticated_user(request):
     """
     Middleware helper to get authenticated user from request.
     Returns (user, tenant) tuple or (None, None) if not authenticated.
+    For admin sessions, returns (None, tenant) since admins don't have User entries.
     """
     auth_header = request.headers.get("Authorization", "")
     
     if not auth_header.startswith("Bearer "):
+        print("DEBUG: No Bearer token in Authorization header")
         return None, None
     
     token = auth_header.split(" ", 1)[1]
     session = SESSION_STORE.get(token)
     
     if not session:
+        print(f"DEBUG: Session not found for token: {token[:20]}...")
+        print(f"DEBUG: Available sessions: {list(SESSION_STORE.keys())}")
         return None, None
     
+    print(f"DEBUG: Session found: {session}")
+    
     try:
+        # Check if this is an admin session (admin has no user_id)
+        if session.get("is_admin") or session.get("user_id") is None:
+            print(f"DEBUG: Admin session detected, tenant_id: {session.get('tenant_id')}")
+            tenant = Tenant.objects.get(id=session["tenant_id"])
+            print(f"DEBUG: Returning admin: (None, tenant={tenant.device_id})")
+            return None, tenant  # Admin has no User object
+        
         user = User.objects.select_related("tenant").get(id=session["user_id"])
+        print(f"DEBUG: Returning user: ({user.id}, {user.tenant.device_id})")
         return user, user.tenant
-    except User.DoesNotExist:
+    except (User.DoesNotExist, Tenant.DoesNotExist) as e:
+        print(f"DEBUG: Exception in get_authenticated_user: {e}")
         return None, None

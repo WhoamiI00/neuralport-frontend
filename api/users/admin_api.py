@@ -14,8 +14,12 @@ def create_user(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
+    
+    # Only admins can create users (admins have auth_user=None)
+    if auth_user is not None:
+        return JsonResponse({"error": "Admin access required"}, status=403)
     
     try:
         body = json.loads(request.body)
@@ -77,7 +81,12 @@ def rename_user(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    
+    # Only admins can rename users
+    if auth_user is not None:
+        return JsonResponse({"error": "Admin access required"}, status=403)
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     try:
@@ -128,8 +137,12 @@ def update_avatar(request):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
+    
+    # Only admins can update avatars
+    if auth_user is not None:
+        return JsonResponse({"error": "Admin access required"}, status=403)
     
     try:
         body = json.loads(request.body)
