@@ -161,13 +161,18 @@ def latest_score(request, tenant_id: int, user_id: int):
             
             row = cursor.fetchone()
             if not row:
-                return JsonResponse({"error": "No scores found"}, status=404)
+                return JsonResponse({
+                    "score": {
+                        "score": 0.0,
+                        "createdAt": ""
+                    }
+                })
             
             return JsonResponse({
-                "id": row[0],
-                "key": row[1],
-                "score": float(row[2]),
-                "created_at": row[3].isoformat()
+                "score": {
+                    "score": float(row[2]),
+                    "createdAt": row[3].isoformat()
+                }
             })
             
     except Exception as e:
@@ -225,9 +230,8 @@ def get_user(request, user_id: int):
 def get_users_by_group(request, link_id: int):
     """GET /api/group/:linkId - Get users by linkedid (group)
     
-    Note: In the old schema, users had a 'linkedid' field.
-    We'll need to add this to user_profiles or use a different grouping mechanism.
-    For now, return empty array or implement based on your grouping needs.
+    For our VR app, all users under a tenant are considered a "group".
+    Returns all users for the authenticated user's tenant ONLY if user is admin.
     """
     if request.method != "GET":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -236,11 +240,55 @@ def get_users_by_group(request, link_id: int):
     if not auth_user:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
-    # TODO: Implement grouping mechanism
-    # Old schema had 'linkedid' in users table
-    # You may want to add a 'group_id' or 'linked_id' field to user_profiles
+    # Check if user is admin - use hardcoded password
+    if auth_user.pin != "pass1234":
+        return JsonResponse({
+            "error": "Access denied. Only admins can view all users."
+        }, status=403)
     
-    return JsonResponse({
-        "message": "Group feature not yet implemented",
-        "users": []
-    }, status=501)
+    try:
+        with connection.cursor() as cursor:
+            # Get all users in the same tenant
+            cursor.execute("""
+                SELECT 
+                    u.id,
+                    u.pin as username,
+                    up.name,
+                    up.uniform_number,
+                    up.portrait_image,
+                    up.metadata
+                FROM users u
+                LEFT JOIN user_profiles up ON u.id = up.user_id
+                WHERE u.tenant_id = %s
+                ORDER BY u.id
+            """, [auth_tenant.id])
+            
+            users = []
+            for row in cursor.fetchall():
+                user_id, username, name, uniform_number, portrait_image, metadata = row
+                
+                # Build serialized profile for compatibility
+                profile = {
+                    "name": name or f"User {user_id}",
+                    "uniform_number": uniform_number,
+                    "portrait_image": portrait_image
+                }
+                
+                # Merge metadata if it exists and is a dict
+                if metadata and isinstance(metadata, dict):
+                    profile.update(metadata)
+                
+                users.append({
+                    "id": user_id,
+                    "username": username,
+                    "serializedProfile": json.dumps(profile)
+                })
+            
+            return JsonResponse({
+                "user": users  # Note: using "user" key for compatibility with old API
+            })
+            
+    except Exception as e:
+        print(f"Error in get_users_by_group: {e}")
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)

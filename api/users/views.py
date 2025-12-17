@@ -4,6 +4,7 @@ import traceback
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.db import connection
 from .models import Tenant, User
 
 
@@ -74,17 +75,20 @@ def login(request):
             "pin": pin
         }
 
+        # Check if user is admin - use hardcoded password
+        is_admin = (pin == "pass1234")
+
         # Return user info
         return JsonResponse({
             "token": token,
             "user": {
-                "id": user.id,
+                "id": str(user.id),
                 "pin": user.pin,
                 "device_id": device_id,
-                "tenant_id": tenant.id,
-                "created": created
+                "tenant_id": str(tenant.id),
+                "is_admin": is_admin
             }
-        }, status=200)
+        })
     except Exception as e:
         print(f"Login error: {e}")
         print(traceback.format_exc())
@@ -120,12 +124,17 @@ def me(request):
     
     try:
         user = User.objects.select_related("tenant").get(id=session["user_id"])
+        
+        # Check if user is admin - use hardcoded password
+        is_admin = (session.get("pin") == "pass1234")
+        
         return JsonResponse({
             "user": {
                 "id": user.id,
                 "pin": user.pin,
                 "device_id": user.tenant.device_id,
-                "tenant_id": user.tenant.id
+                "tenant_id": user.tenant.id,
+                "is_admin": is_admin
             }
         }, status=200)
     except User.DoesNotExist:
