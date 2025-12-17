@@ -40,41 +40,34 @@
                 <div class="form-content">
                     <Transition name="form-slide" mode="out-in">
                         <form class="auth-form" @submit.prevent="handleLogin">
-                            <h1 class="form-title">Welcome Back</h1>
-                            <p class="form-subtitle">Log in to your account</p>
+                            <h1 class="form-title">VR Access</h1>
+                            <p class="form-subtitle">Authenticate with Device ID and PIN</p>
 
                             <div class="input-group">
                                 <input 
                                     type="text" 
-                                    v-model="loginForm.identifier"
+                                    v-model="loginForm.deviceId"
                                     placeholder=" "
                                     required
-                                    autocomplete="email"
+                                    autocomplete="off"
                                 />
-                                <label>Email or Username</label>
+                                <label>Device ID</label>
                                 <span class="input-highlight"></span>
                             </div>
 
                             <div class="input-group">
                                 <input 
                                     type="password" 
-                                    v-model="loginForm.password"
+                                    v-model="loginForm.pin"
                                     placeholder=" "
                                     required
-                                    autocomplete="current-password"
+                                    autocomplete="off"
                                 />
-                                <label>Password</label>
+                                <label>PIN</label>
                                 <span class="input-highlight"></span>
                             </div>
 
-                            <div class="form-options">
-                                <label class="checkbox-wrapper">
-                                    <input type="checkbox" v-model="loginForm.remember" />
-                                    <span class="checkmark"></span>
-                                    <span class="checkbox-label">Remember me</span>
-                                </label>
-                                <a href="#" class="forgot-link">Forgot Password?</a>
-                            </div>
+
 
                             <button 
                                 type="submit" 
@@ -143,9 +136,8 @@ function watchSystemPreference() {
 
 // Login form data
 const loginForm = reactive({
-    identifier: '',
-    password: '',
-    remember: false
+    deviceId: '',
+    pin: ''
 })
 
 // Handle login submit
@@ -153,8 +145,7 @@ async function handleLogin() {
     error.value = ''
     loading.value = true
     try {
-        // Use identifier as email (can be extended to support username lookup)
-        await authStore.signIn(loginForm.identifier, loginForm.password)
+        await authStore.signIn(loginForm.deviceId, loginForm.pin)
         router.push((route.query.redirect as string) || '/account')
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'

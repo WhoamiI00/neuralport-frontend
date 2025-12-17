@@ -6,21 +6,32 @@
 
     <div v-else class="form-widget">
       <div class="form-group">
-        <label for="email">Email</label>
+        <label for="device-id">Device ID</label>
         <input 
-          id="email" 
+          id="device-id" 
           type="text" 
-          :value="authStore.user?.email" 
+          :value="authStore.user?.device_id" 
           disabled 
         />
       </div>
 
       <div class="form-group">
-        <label for="profile-email">Profile Email</label>
+        <label for="user-id">User ID</label>
         <input 
-          id="profile-email" 
-          v-model="profileEmail" 
-          type="text"
+          id="user-id" 
+          type="text" 
+          :value="authStore.user?.id" 
+          disabled 
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="pin">PIN</label>
+        <input 
+          id="pin" 
+          type="password" 
+          :value="authStore.user?.pin" 
+          disabled 
         />
       </div>
 
@@ -29,14 +40,6 @@
       </div>
 
       <div class="button-group">
-        <button 
-          @click="updateProfile" 
-          :disabled="loading"
-          class="primary"
-        >
-          {{ loading ? 'Loading...' : 'Update Profile' }}
-        </button>
-
         <button 
           @click="handleSignOut"
           :disabled="loading"
@@ -50,67 +53,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { supabase } from '../lib/supabase'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
 const loading = ref(false)
-const profileEmail = ref('')
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
-
-onMounted(async () => {
-  await getProfile()
-})
-
-async function getProfile() {
-  try {
-    loading.value = true
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email')
-      .eq('id', authStore.user?.id)
-      .single()
-
-    if (error) throw error
-
-    if (data) {
-      profileEmail.value = data.email
-    }
-  } catch (e: any) {
-    console.error(e)
-    showMessage('Error loading profile!', 'error')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function updateProfile() {
-  try {
-    loading.value = true
-
-    const { error } = await supabase
-      .from('profiles')
-      .upsert({
-        id: authStore.user?.id,
-        email: profileEmail.value
-      })
-
-    if (error) throw error
-
-    showMessage('Profile updated!', 'success')
-  } catch (e: any) {
-    console.error(e)
-    showMessage('Error updating profile!', 'error')
-  } finally {
-    loading.value = false
-  }
-}
 
 async function handleSignOut() {
   try {
