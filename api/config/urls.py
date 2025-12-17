@@ -1,52 +1,79 @@
 from django.http import JsonResponse
 from django.urls import path
-from postgrest.exceptions import APIError
+from django.db import connection
 
-from .supabase_client import get_client
+from users.views import login, logout, me, get_authenticated_user
 
 
 def health(request):
     return JsonResponse({"status": "ok"})
 
 
-def profiles(request, user_id: str):
+def profiles(request, user_id: int):
+    """Get user profile by user ID"""
     if request.method != "GET":
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
-    supabase = get_client()
+    # Authenticate the request
+    user, tenant = get_authenticated_user(request)
+    if not user:
+        return JsonResponse({"error": "Authentication required"}, status=401)
 
-    auth_header = request.headers.get("Authorization") or ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header.split(" ", 1)[1]
-        if token:
-            supabase.postgrest.auth(token)
-
-    try:
-        response = (
-            supabase.table("profiles")
-            .select("*")
-            .eq("id", user_id)
-            .single()
-            .execute()
-        )
-    except APIError as exc:
-        status_code = getattr(exc, "status_code", None)
-        if status_code == 401:
-            return JsonResponse(
-                {"error": "Access denied by RLS policy"},
-                status=403,
+    # Users can only access their own profile or profiles within their tenant
+    if user.id != user_id:
+        # Check if the requested user is in the same tenant
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT tenant_id FROM users WHERE id = %s",
+                [user_id]
             )
-        if getattr(exc, "code", "") == "PGRST116":
+            row = cursor.fetchone()
+            if not row or row[0] != tenant.id:
+                return JsonResponse({"error": "Access denied"}, status=403)
+
+    # Fetch user profile
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT 
+                u.id,
+                u.pin,
+                u.tenant_id,
+                t.device_id,
+                t.name as tenant_name,
+                up.name,
+                up.uniform_number,
+                up.portrait_image,
+                up.metadata
+            FROM users u
+            JOIN tenants t ON u.tenant_id = t.id
+            LEFT JOIN user_profiles up ON u.id = up.user_id
+            WHERE u.id = %s
+        """, [user_id])
+        
+        row = cursor.fetchone()
+        if not row:
             return JsonResponse({"error": "Profile not found"}, status=404)
-        raise
 
-    if not response.data:
-        return JsonResponse({"error": "Profile not found"}, status=404)
+        profile = {
+            "id": row[0],
+            "pin": row[1],
+            "tenant_id": row[2],
+            "device_id": row[3],
+            "tenant_name": row[4],
+            "name": row[5],
+            "uniform_number": row[6],
+            "portrait_image": row[7],
+            "metadata": row[8] or {}
+        }
 
-    return JsonResponse(response.data)
+    return JsonResponse(profile)
 
 
 urlpatterns = [
     path("health", health),
-    path("profiles/<str:user_id>", profiles),
+    path("profiles/<int:user_id>", profiles),
+    # Authentication endpoints
+    path("auth/login", login, name="login"),
+    path("auth/logout", logout, name="logout"),
+    path("auth/me", me, name="me"),
 ]
