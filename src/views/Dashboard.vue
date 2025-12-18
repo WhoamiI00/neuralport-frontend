@@ -675,10 +675,10 @@ export default defineComponent({
         async fetchLatest() {
             const user_id = this.getUserId()
             try {
-                const score = await getLatestScore(1, parseInt(user_id))
+                const data = await getLatestScore(1, parseInt(user_id))
                 this.latest_score = {
-                    score_value: score.score ?? 0.0,
-                    createdAt: score.created_at ?? ""
+                    score_value: data.score?.score ?? 0.0,
+                    createdAt: data.score?.createdAt ?? ""
                 }
             } catch (err) {
                 console.error('fetchLatest error', err)
@@ -776,7 +776,17 @@ export default defineComponent({
     },
 
     async mounted() {
-        await this.loadCurrentUserData()
+        const auth = useAuthStore()
+        
+        // Admins don't have user data to load, only fetch the group
+        if (auth.user?.is_admin) {
+            this.loading = true
+            await this.fetchGroup()
+            this.loading = false
+        } else {
+            await this.loadCurrentUserData()
+        }
+        
         window.addEventListener("resize", this.__resizeHandler)
     },
     

@@ -176,7 +176,7 @@ async function handleLogin() {
         if (authStore.user?.is_admin) {
             router.push('/dashboard')  // Admin goes to dashboard for user management
         } else {
-            router.push((route.query.redirect as string) || '/account')  // Regular users go to their account/training
+            router.push((route.query.redirect as string) || '/dashboard')  // Regular users also go to dashboard
         }
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
