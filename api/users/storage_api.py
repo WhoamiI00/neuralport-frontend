@@ -109,7 +109,7 @@ def list_scores(request, tenant_id: int, user_id: int):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     # Check access: must be same tenant
@@ -148,7 +148,7 @@ def latest_score(request, tenant_id: int, user_id: int):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     # Check access
@@ -193,7 +193,7 @@ def get_user(request, user_id: int):
         return JsonResponse({"error": "Method not allowed"}, status=405)
     
     auth_user, auth_tenant = get_authenticated_user(request)
-    if not auth_user:
+    if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     try:
