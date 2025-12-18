@@ -308,10 +308,10 @@ export default defineComponent({
     },
     watch: {
         mode() {
-            this.resizeChart1()
+            this.refreshChartWithNewData()
         },
         current() {
-            this.resizeChart1()
+            this.refreshChartWithNewData()
         },
         selectedMemberId(newId) {
             if (newId) {
@@ -338,7 +338,7 @@ export default defineComponent({
                 this.mode === "Day" ? addDays(this.current, -1) :
                 this.mode === "Week" ? addWeeks(this.current, -1) :
                 addMonths(this.current, -1)
-            this.resizeChart1()
+            this.refreshChartWithNewData()
         },
         
         next() {
@@ -346,7 +346,15 @@ export default defineComponent({
                 this.mode === "Day" ? addDays(this.current, +1) :
                 this.mode === "Week" ? addWeeks(this.current, +1) :
                 addMonths(this.current, +1)
-            this.resizeChart1()
+            this.refreshChartWithNewData()
+        },
+        
+        async refreshChartWithNewData() {
+            if (this.chart1) {
+                this.destroyChart1()
+                await this.$nextTick()
+                await this.initChart1()
+            }
         },
         
         navigateDateRange(direction) {
@@ -471,21 +479,46 @@ export default defineComponent({
                 end = endOfMonth(this.current)
             }
 
+            console.log('📊 Fetching chart data:', {
+                mode: this.mode,
+                current: this.current,
+                start: start,
+                end: end,
+                userId: user_id
+            })
+
             try {
                 const scores = await listScores(1, parseInt(user_id))
+                console.log('📥 Received scores from API:', scores.length, 'total scores')
 
                 const items = Array.isArray(scores) ? scores : []
-                items.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                
+                // Filter items by date range BEFORE processing
+                const filteredItems = items.filter(item => {
+                    const d = new Date(item.created_at)
+                    if (isNaN(d.getTime())) return false
+                    const t = d.getTime()
+                    return t >= start.getTime() && t <= end.getTime()
+                })
+                
+                console.log('✅ Filtered scores for date range:', filteredItems.length, 'scores')
+                console.log('📅 Date range:', format(start, 'yyyy-MM-dd HH:mm'), 'to', format(end, 'yyyy-MM-dd HH:mm'))
+                
+                if (filteredItems.length > 0) {
+                    console.log('🎯 Sample filtered data:', filteredItems.slice(0, 3))
+                }
+                
+                filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                 
                 // Store total data points for session count
-                this.totalDataPoints = items.length
+                this.totalDataPoints = filteredItems.length
 
                 let sum = 0
                 let sumSq = 0
                 let count = 0
 
                 if (this.mode === 'Day') {
-                    for (const item of items) {
+                    for (const item of filteredItems) {
                         const d = new Date(item.created_at)
                         if (isNaN(d.getTime())) continue
 
@@ -504,7 +537,7 @@ export default defineComponent({
                     }
                 } else {
                     const dayMap = new Map()
-                    for (const item of items) {
+                    for (const item of filteredItems) {
                         const d = new Date(item.created_at)
                         if (isNaN(d.getTime())) continue
                         const y = d.getUTCFullYear()
@@ -571,8 +604,16 @@ export default defineComponent({
                     trigger: "axis",
                     backgroundColor: this.isDark ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
                     borderColor: this.isDark ? 'rgba(71, 85, 105, 0.5)' : 'rgba(203, 213, 225, 0.5)',
-                    textStyle: { color: this.isDark ? '#F1F5F9' : '#1E293B', fontSize: 12 },
-                    axisPointer: { type: "cross" },
+                    borderWidth: 1,
+                    textStyle: { color: this.isDark ? '#F1F5F9' : '#1E293B', fontSize: 13, fontWeight: 500 },
+                    padding: [10, 15],
+                    axisPointer: { 
+                        type: "cross",
+                        lineStyle: {
+                            color: this.isDark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                            type: 'dashed'
+                        }
+                    },
                     formatter: params => {
                         if (!params || !params.length) return ""
                         const raw = params[0].data && params[0].data[0] ? params[0].data[0] : null
@@ -580,7 +621,17 @@ export default defineComponent({
                         const timeLabel = t != null
                             ? (this.mode === "Day" && Math.abs(t - dayEndMs) <= 1000 ? "24:00" : format(new Date(t), "yyyy/M/d HH:mm"))
                             : ""
-                        return `${timeLabel}<br/>` + params.map(p => `${p.seriesName}: ${p.data[1]}`).join("<br/>")
+                        
+                        let html = `<div style="font-weight: 600; margin-bottom: 8px; color: ${this.isDark ? '#22D3EE' : '#0891B2'}">${timeLabel}</div>`
+                        params.forEach(p => {
+                            const value = p.data[1]
+                            html += `<div style="display: flex; align-items: center; margin-top: 4px;">
+                                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p.color}; margin-right: 8px;"></span>
+                                <span style="color: ${this.isDark ? '#CBD5E1' : '#475569'};">Brain Fatigue:</span>
+                                <span style="margin-left: 8px; font-weight: 600; color: ${this.isDark ? '#F1F5F9' : '#1E293B'};">${value}</span>
+                            </div>`
+                        })
+                        return html
                     }
                 },
                 legend: { show: false },
@@ -659,7 +710,10 @@ export default defineComponent({
         __resizeHandler: _.throttle(function () {
             if (this.chart1) {
                 this.chart1.dispose()
-                this.initChart1()
+                this.chart1 = null
+                this.$nextTick(() => {
+                    this.initChart1()
+                })
             }
         }, 700),
         
