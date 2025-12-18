@@ -1,20 +1,9 @@
 <template>
-    <div class="app-container">
-        <transition name="fade">
-            <div class="splash-screen" v-if="splashScreen">
-                <div class="wrap">
-                    <img src="./assets/images/logo_ZEP.png" class="logo" alt="logo" />
-                    <img src="/Ripple-2s-200px.gif" alt="loading-image" />
-                </div>
-            </div>
+    <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+            <component :is="Component" />
         </transition>
-
-        <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-                <component :is="Component" />
-            </transition>
-        </router-view>
-    </div>
+    </router-view>
 </template>
 
 <script lang="ts">
@@ -40,10 +29,18 @@ export default defineComponent({
 <style lang="scss">
 @import "./assets/scss/_variables";
 
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 .app-container {
     width: 100%;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
 }
 
 .splash-screen {

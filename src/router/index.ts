@@ -5,6 +5,7 @@ import LoginView from '../views/LoginView.vue'
 import AccountView from '../views/AccountView.vue'
 import StorageDemoView from '../views/StorageDemoView.vue'
 import Dashboard from '../views/Dashboard.vue'
+import UserDetailView from '../views/UserDetailView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,6 +19,12 @@ const router = createRouter({
       path: '/dashboard',
       name: 'dashboard',
       component: Dashboard,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/user/:id',
+      name: 'user-detail',
+      component: UserDetailView,
       meta: { requiresAuth: true }
     },
     {

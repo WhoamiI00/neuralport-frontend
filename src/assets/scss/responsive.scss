@@ -1,0 +1,432 @@
+// ═══════════════════════════════════════════════════════════════
+// ZEN EYE PRO Responsive Design System
+// Mobile-First Approach with Comprehensive Breakpoints
+// ═══════════════════════════════════════════════════════════════
+
+// ───────────────────────────────────────────────────────────────
+// 📱 MOBILE-FIRST BREAKPOINTS
+// ───────────────────────────────────────────────────────────────
+
+// Base mobile sizes
+$bp-mobile-xs: 320px;   // Small phones (iPhone SE, older devices)
+$bp-mobile-sm: 375px;   // Standard phones (iPhone 12/13/14)
+$bp-mobile-md: 414px;   // Large phones (iPhone Plus/Max)
+$bp-mobile-lg: 480px;   // Large mobile / small phablet
+
+// Tablet sizes
+$bp-tablet-sm: 600px;   // Small tablets, large phones landscape
+$bp-tablet: 768px;      // Standard tablets (iPad Mini)
+$bp-tablet-lg: 900px;   // Large tablets
+
+// Desktop sizes  
+$bp-desktop-sm: 1024px; // Small laptops, tablets landscape
+$bp-desktop: 1200px;    // Standard desktop
+$bp-desktop-lg: 1400px; // Large desktop
+$bp-desktop-xl: 1600px; // Extra large screens
+
+// ───────────────────────────────────────────────────────────────
+// 🔧 RESPONSIVE MIXINS (Mobile-First)
+// ───────────────────────────────────────────────────────────────
+
+// Mobile-first: styles apply from width and UP
+@mixin from-mobile-sm {
+  @media (min-width: $bp-mobile-sm) {
+    @content;
+  }
+}
+
+@mixin from-mobile-md {
+  @media (min-width: $bp-mobile-md) {
+    @content;
+  }
+}
+
+@mixin from-mobile-lg {
+  @media (min-width: $bp-mobile-lg) {
+    @content;
+  }
+}
+
+@mixin from-tablet-sm {
+  @media (min-width: $bp-tablet-sm) {
+    @content;
+  }
+}
+
+@mixin from-tablet {
+  @media (min-width: $bp-tablet) {
+    @content;
+  }
+}
+
+@mixin from-tablet-lg {
+  @media (min-width: $bp-tablet-lg) {
+    @content;
+  }
+}
+
+@mixin from-desktop-sm {
+  @media (min-width: $bp-desktop-sm) {
+    @content;
+  }
+}
+
+@mixin from-desktop {
+  @media (min-width: $bp-desktop) {
+    @content;
+  }
+}
+
+@mixin from-desktop-lg {
+  @media (min-width: $bp-desktop-lg) {
+    @content;
+  }
+}
+
+// Max-width (for overrides when needed)
+@mixin until-tablet {
+  @media (max-width: ($bp-tablet - 1px)) {
+    @content;
+  }
+}
+
+@mixin until-desktop-sm {
+  @media (max-width: ($bp-desktop-sm - 1px)) {
+    @content;
+  }
+}
+
+@mixin until-desktop {
+  @media (max-width: ($bp-desktop - 1px)) {
+    @content;
+  }
+}
+
+// Mobile only
+@mixin mobile-only {
+  @media (max-width: ($bp-tablet - 1px)) {
+    @content;
+  }
+}
+
+// Tablet only
+@mixin tablet-only {
+  @media (min-width: $bp-tablet) and (max-width: ($bp-desktop-sm - 1px)) {
+    @content;
+  }
+}
+
+// Desktop only
+@mixin desktop-only {
+  @media (min-width: $bp-desktop-sm) {
+    @content;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 📐 RESPONSIVE GRID UTILITIES
+// ───────────────────────────────────────────────────────────────
+
+// Responsive container
+@mixin responsive-container {
+  width: 100%;
+  padding-left: 16px;
+  padding-right: 16px;
+  margin: 0 auto;
+
+  @include from-mobile-md {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  @include from-tablet {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  @include from-desktop-sm {
+    padding-left: 32px;
+    padding-right: 32px;
+    max-width: 1400px;
+  }
+
+  @include from-desktop-lg {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+// Responsive grid for cards
+@mixin responsive-card-grid($min-card-width: 280px) {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+
+  @include from-mobile-md {
+    gap: 20px;
+  }
+
+  @include from-tablet-sm {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include from-tablet {
+    gap: 24px;
+  }
+
+  @include from-desktop-sm {
+    grid-template-columns: repeat(auto-fit, minmax($min-card-width, 1fr));
+  }
+}
+
+// KPI grid responsive
+@mixin responsive-kpi-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+
+  @include from-mobile-md {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  @include from-tablet {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  @include from-desktop-sm {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @include from-desktop {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 📊 CHART RESPONSIVE UTILITIES
+// ───────────────────────────────────────────────────────────────
+
+@mixin responsive-chart-container {
+  width: 100%;
+  min-height: 250px;
+  
+  @include from-tablet {
+    min-height: 300px;
+  }
+  
+  @include from-desktop-sm {
+    min-height: 350px;
+  }
+}
+
+@mixin responsive-chart-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  @include from-desktop-sm {
+    flex-direction: row;
+    gap: 24px;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 📝 TYPOGRAPHY RESPONSIVE
+// ───────────────────────────────────────────────────────────────
+
+@mixin responsive-heading-1 {
+  font-size: 1.5rem;    // 24px
+  line-height: 1.3;
+
+  @include from-tablet {
+    font-size: 1.875rem; // 30px
+  }
+
+  @include from-desktop-sm {
+    font-size: 2.25rem;  // 36px
+  }
+}
+
+@mixin responsive-heading-2 {
+  font-size: 1.25rem;   // 20px
+  line-height: 1.35;
+
+  @include from-tablet {
+    font-size: 1.5rem;   // 24px
+  }
+
+  @include from-desktop-sm {
+    font-size: 1.875rem; // 30px
+  }
+}
+
+@mixin responsive-heading-3 {
+  font-size: 1.125rem;  // 18px
+  line-height: 1.4;
+
+  @include from-tablet {
+    font-size: 1.25rem;  // 20px
+  }
+
+  @include from-desktop-sm {
+    font-size: 1.5rem;   // 24px
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 🎯 SPACING RESPONSIVE
+// ───────────────────────────────────────────────────────────────
+
+@mixin responsive-section-spacing {
+  margin-bottom: 24px;
+
+  @include from-tablet {
+    margin-bottom: 32px;
+  }
+
+  @include from-desktop-sm {
+    margin-bottom: 40px;
+  }
+}
+
+@mixin responsive-card-padding {
+  padding: 16px;
+
+  @include from-mobile-md {
+    padding: 20px;
+  }
+
+  @include from-tablet {
+    padding: 24px;
+  }
+
+  @include from-desktop-sm {
+    padding: 28px;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 🔲 HEADER RESPONSIVE
+// ───────────────────────────────────────────────────────────────
+
+@mixin responsive-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+
+  @include from-tablet {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    gap: 16px;
+  }
+
+  @include from-desktop-sm {
+    padding: 20px 32px;
+  }
+}
+
+@mixin responsive-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+
+  @include from-tablet {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 📋 TABLE RESPONSIVE
+// ───────────────────────────────────────────────────────────────
+
+@mixin responsive-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -16px;
+  padding: 0 16px;
+
+  @include from-tablet {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 👆 TOUCH UTILITIES
+// ───────────────────────────────────────────────────────────────
+
+@mixin touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@mixin touch-friendly-button {
+  @include touch-target;
+  padding: 12px 16px;
+
+  @include from-desktop-sm {
+    min-height: 36px;
+    min-width: auto;
+    padding: 8px 16px;
+  }
+}
+
+// ───────────────────────────────────────────────────────────────
+// 🙈 VISIBILITY UTILITIES
+// ───────────────────────────────────────────────────────────────
+
+@mixin hide-on-mobile {
+  display: none;
+
+  @include from-tablet {
+    display: block;
+  }
+}
+
+@mixin hide-on-desktop {
+  display: block;
+
+  @include from-desktop-sm {
+    display: none;
+  }
+}
+
+@mixin show-on-mobile-only {
+  display: block;
+
+  @include from-tablet {
+    display: none;
+  }
+}
+
+@mixin show-on-desktop-only {
+  display: none;
+
+  @include from-desktop-sm {
+    display: block;
+  }
+}
+
+// Flex variants
+@mixin hide-on-mobile-flex {
+  display: none;
+
+  @include from-tablet {
+    display: flex;
+  }
+}
+
+@mixin show-on-mobile-only-flex {
+  display: flex;
+
+  @include from-tablet {
+    display: none;
+  }
+}

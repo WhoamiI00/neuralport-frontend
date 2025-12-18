@@ -375,6 +375,7 @@ export default defineComponent({
         
         navigateToUserDetails(memberId) {
             console.log('Navigate to user details:', memberId)
+            this.$router.push(`/user/${memberId}`)
         },
         
         async handleCreateUser(userData) {
