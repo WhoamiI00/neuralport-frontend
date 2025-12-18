@@ -1044,6 +1044,42 @@ const fetchUserData = async () => {
     // Fetch user's scores
     const scores = await listScores(userProfile.tenant_id, userProfile.id)
     
+    // Fetch full storage data for each score to get blink and pupil information
+    const sessionsWithData = await Promise.all(
+      scores.slice(-10).map(async (score) => {
+        try {
+          const storage = await getStorage(score.key)
+          const data = storage.data || {}
+          return {
+            score: Number(score.score),
+            created_at: score.created_at,
+            key: score.key,
+            blinkCount: data.blinkCount || 0,
+            leftBlinkCount: data.leftBlinkCount || 0,
+            rightBlinkCount: data.rightBlinkCount || 0,
+            pupilDiameter: data.pupilDiameter || 0,
+            leftPupilDiameter: data.leftPupilDiameter || 0,
+            rightPupilDiameter: data.rightPupilDiameter || 0,
+            eyeTrackingData: data.eyeTrackingData || []
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch storage for key ${score.key}:`, err)
+          return {
+            score: Number(score.score),
+            created_at: score.created_at,
+            key: score.key,
+            blinkCount: 0,
+            leftBlinkCount: 0,
+            rightBlinkCount: 0,
+            pupilDiameter: 0,
+            leftPupilDiameter: 0,
+            rightPupilDiameter: 0,
+            eyeTrackingData: []
+          }
+        }
+      })
+    )
+    
     // Calculate statistics from scores
     const scoreValues = scores.map(s => Number(s.score))
     const latestScore = scoreValues.length > 0 ? scoreValues[scoreValues.length - 1] : 0
@@ -1070,6 +1106,23 @@ const fetchUserData = async () => {
       lastActiveDate: scores.length > 0 ? scores[scores.length - 1].created_at : userProfile.created_at
     }
     
+    // Create blink analytics from sessions
+    const blinkAnalytics = sessionsWithData.map((session, idx) => ({
+      session: `S${idx + 1}`,
+      leftBlinks: session.leftBlinkCount || 0,
+      rightBlinks: session.rightBlinkCount || 0
+    }))
+    
+    // Create pupil tracking data from sessions
+    const pupilTracking = sessionsWithData.map((session, idx) => {
+      const date = new Date(session.created_at)
+      return {
+        time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        leftPupil: session.leftPupilDiameter || 0,
+        rightPupil: session.rightPupilDiameter || 0
+      }
+    })
+    
     // Create dashboard data from scores
     memberDashboard.value = {
       memberId: String(userProfile.id),
@@ -1084,14 +1137,14 @@ const fetchUserData = async () => {
         date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         score: Number(s.score)
       })),
-      blinkAnalytics: [],
-      pupilTracking: [],
-      recentSessions: scores.slice(-5).reverse().map((s, idx) => ({
-        sessionId: `SES${String(idx + 1).padStart(3, '0')}`,
-        date: s.created_at,
-        duration: 2400, // Placeholder
-        fatigueScore: Number(s.score),
-        blinkCount: 0, // Placeholder
+      blinkAnalytics,
+      pupilTracking,
+      recentSessions: sessionsWithData.slice(-5).reverse().map((session, idx) => ({
+        sessionId: session.key.substring(0, 8).toUpperCase(),
+        date: session.created_at,
+        duration: 60, // 60 seconds from our generated data
+        fatigueScore: session.score,
+        blinkCount: session.blinkCount,
         status: 'completed' as const
       }))
     }
