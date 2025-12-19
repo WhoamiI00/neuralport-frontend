@@ -236,8 +236,9 @@ def get_user(request, user_id: int):
 def get_users_by_group(request, link_id: int):
     """GET /api/group/:linkId - Get users by linkedid (group)
     
-    For our VR app, all users under a tenant are considered a "group".
-    Returns all users for the authenticated user's tenant ONLY if user is admin.
+    For our VR app:
+    - Admins: Returns all users in the tenant
+    - Regular users: Returns only their own user data
     """
     if request.method != "GET":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -246,28 +247,39 @@ def get_users_by_group(request, link_id: int):
     if not auth_tenant:
         return JsonResponse({"error": "Authentication required"}, status=401)
     
-    # Only admins can view all users (admins have auth_user=None)
-    if auth_user is not None:
-        return JsonResponse({
-            "error": "Access denied. Only admins can view all users."
-        }, status=403)
-    
     try:
         with connection.cursor() as cursor:
-            # Get all users in the same tenant
-            cursor.execute("""
-                SELECT 
-                    u.id,
-                    u.pin as username,
-                    up.name,
-                    up.uniform_number,
-                    up.portrait_image,
-                    up.metadata
-                FROM users u
-                LEFT JOIN user_profiles up ON u.id = up.user_id
-                WHERE u.tenant_id = %s
-                ORDER BY u.id
-            """, [auth_tenant.id])
+            # If admin (auth_user is None), return all users in tenant
+            # If regular user, return only their own data
+            if auth_user is None:
+                # Admin: Get all users in the tenant
+                cursor.execute("""
+                    SELECT 
+                        u.id,
+                        u.pin as username,
+                        up.name,
+                        up.uniform_number,
+                        up.portrait_image,
+                        up.metadata
+                    FROM users u
+                    LEFT JOIN user_profiles up ON u.id = up.user_id
+                    WHERE u.tenant_id = %s
+                    ORDER BY u.id
+                """, [auth_tenant.id])
+            else:
+                # Regular user: Get only their own data
+                cursor.execute("""
+                    SELECT 
+                        u.id,
+                        u.pin as username,
+                        up.name,
+                        up.uniform_number,
+                        up.portrait_image,
+                        up.metadata
+                    FROM users u
+                    LEFT JOIN user_profiles up ON u.id = up.user_id
+                    WHERE u.id = %s AND u.tenant_id = %s
+                """, [auth_user.id, auth_tenant.id])
             
             users = []
             for row in cursor.fetchall():

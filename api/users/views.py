@@ -5,11 +5,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.db import connection
-from .models import Tenant, User
-
-
-# Simple in-memory session store (use Redis or Django sessions in production)
-SESSION_STORE = {}
+from .models import Tenant, User, Session
 
 
 def generate_token():
@@ -84,15 +80,17 @@ def login(request):
             tenant.admin_password = admin_password
             tenant.save()
             
-            # Generate session token for admin
+            # Generate session token for admin (24 hour expiration)
             token = generate_token()
-            SESSION_STORE[token] = {
-                "user_id": None,  # Admin has no user ID
-                "tenant_id": tenant.id,
-                "device_id": device_id,
-                "pin": admin_password,
-                "is_admin": True
-            }
+            Session.create_session(
+                token=token,
+                tenant=tenant,
+                user=None,
+                device_id=device_id,
+                pin=admin_password,
+                is_admin=True,
+                hours=24
+            )
             
             return JsonResponse({
                 "token": token,
@@ -110,13 +108,15 @@ def login(request):
         if tenant.admin_password and pin == tenant.admin_password:
             # This is admin login - admin cannot use the training system
             token = generate_token()
-            SESSION_STORE[token] = {
-                "user_id": None,  # Admin has no user ID
-                "tenant_id": tenant.id,
-                "device_id": device_id,
-                "pin": pin,
-                "is_admin": True
-            }
+            Session.create_session(
+                token=token,
+                tenant=tenant,
+                user=None,
+                device_id=device_id,
+                pin=pin,
+                is_admin=True,
+                hours=24
+            )
             
             return JsonResponse({
                 "token": token,
@@ -134,14 +134,17 @@ def login(request):
             user, _ = User.objects.get_or_create(tenant=tenant, pin=pin)
             is_admin = False
 
-        # Generate session token
+        # Generate session token (24 hour expiration)
         token = generate_token()
-        SESSION_STORE[token] = {
-            "user_id": user.id,
-            "tenant_id": tenant.id,
-            "device_id": device_id,
-            "pin": pin
-        }
+        Session.create_session(
+            token=token,
+            tenant=tenant,
+            user=user,
+            device_id=device_id,
+            pin=pin,
+            is_admin=False,
+            hours=24
+        )
 
         # Return user info
         return JsonResponse({
@@ -167,8 +170,7 @@ def logout(request):
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         token = auth_header.split(" ", 1)[1]
-        if token in SESSION_STORE:
-            del SESSION_STORE[token]
+        Session.objects.filter(token=token).delete()
     
     return JsonResponse({"message": "Logged out successfully"}, status=200)
 
@@ -182,28 +184,28 @@ def me(request):
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     token = auth_header.split(" ", 1)[1]
-    session = SESSION_STORE.get(token)
+    session = Session.get_valid_session(token)
     
     if not session:
         return JsonResponse({"error": "Invalid or expired token"}, status=401)
     
     try:
         # Check if this is an admin session
-        if session.get("is_admin"):
-            tenant = Tenant.objects.get(id=session["tenant_id"])
+        if session.is_admin:
             return JsonResponse({
                 "user": {
                     "id": None,
-                    "pin": session.get("pin"),
-                    "device_id": tenant.device_id,
-                    "tenant_id": str(tenant.id),
+                    "pin": session.pin,
+                    "device_id": session.tenant.device_id,
+                    "tenant_id": str(session.tenant.id),
                     "is_admin": True
                 }
             }, status=200)
         
         # Regular user
-        user = User.objects.select_related("tenant").get(id=session["user_id"])
-        tenant = user.tenant
+        user = session.user
+        if not user:
+            return JsonResponse({"error": "User not found"}, status=404)
         
         # Regular users are never admin
         is_admin = False
@@ -217,7 +219,9 @@ def me(request):
                 "is_admin": is_admin
             }
         }, status=200)
-    except User.DoesNotExist:
+    except Exception as e:
+        print(f"Error in /me: {e}")
+        traceback.print_exc()
         return JsonResponse({"error": "User not found"}, status=404)
 
 
@@ -234,26 +238,23 @@ def get_authenticated_user(request):
         return None, None
     
     token = auth_header.split(" ", 1)[1]
-    session = SESSION_STORE.get(token)
+    session = Session.get_valid_session(token)
     
     if not session:
-        print(f"DEBUG: Session not found for token: {token[:20]}...")
-        print(f"DEBUG: Available sessions: {list(SESSION_STORE.keys())}")
+        print(f"DEBUG: Session not found or expired for token: {token[:20]}...")
         return None, None
     
-    print(f"DEBUG: Session found: {session}")
+    print(f"DEBUG: Valid session found for tenant: {session.tenant.device_id}")
     
-    try:
-        # Check if this is an admin session (admin has no user_id)
-        if session.get("is_admin") or session.get("user_id") is None:
-            print(f"DEBUG: Admin session detected, tenant_id: {session.get('tenant_id')}")
-            tenant = Tenant.objects.get(id=session["tenant_id"])
-            print(f"DEBUG: Returning admin: (None, tenant={tenant.device_id})")
-            return None, tenant  # Admin has no User object
-        
-        user = User.objects.select_related("tenant").get(id=session["user_id"])
-        print(f"DEBUG: Returning user: ({user.id}, {user.tenant.device_id})")
-        return user, user.tenant
-    except (User.DoesNotExist, Tenant.DoesNotExist) as e:
-        print(f"DEBUG: Exception in get_authenticated_user: {e}")
-        return None, None
+    # Check if this is an admin session
+    if session.is_admin:
+        print(f"DEBUG: Admin session detected, tenant_id: {session.tenant.id}")
+        return None, session.tenant  # Admin has no User object
+    
+    # Regular user session
+    if session.user:
+        print(f"DEBUG: Returning user: ({session.user.id}, {session.tenant.device_id})")
+        return session.user, session.tenant
+    
+    print(f"DEBUG: Session has no user")
+    return None, None
