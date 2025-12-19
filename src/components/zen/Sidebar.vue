@@ -139,7 +139,7 @@ const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'deselect-member'): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; password: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
 }>()
 
 const router = useRouter()
@@ -230,7 +230,7 @@ const handleViewDetails = (memberId: string) => {
  * Handle create user event from MemberList
  * Emits to parent so it can call API to create the user
  */
-const handleCreateUser = (userData: { pin: string; username: string; password: string; avatar: File | null; avatarUrl: string | null }) => {
+const handleCreateUser = (userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }) => {
   emit('create-user', userData)
 }
 

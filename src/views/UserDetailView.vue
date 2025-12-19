@@ -461,16 +461,15 @@ import { useTheme } from '@/composables/useTheme'
 // import { useAuthStore } from '@/stores/main' // Auth disabled
 import type { EChartsOption } from 'echarts'
 import ThemeToggle from '@/components/zen/ThemeToggle.vue'
-import RoundedKpiCard from '@/components/zen/RoundedKpiCard.vue'
 import ChartCard from '@/components/zen/ChartCard.vue'
 import FatigueScoreCard from '@/components/zen/FatigueScoreCard.vue'
 import AverageScoreCard from '@/components/zen/AverageScoreCard.vue'
 import StandardDeviationCard from '@/components/zen/StandardDeviationCard.vue'
 
 // Import data modules
-import { getMemberById, type Member } from '@/data/members'
-import { getMemberDashboard, type MemberDashboard } from '@/data/memberDashboards'
-import { getUser, listScores } from '@/lib/api'
+import type { Member } from '@/data/members'
+import type { MemberDashboard } from '@/data/memberDashboards'
+import { getUser, listScores, getStorage } from '@/lib/api'
 
 interface Session {
   sessionId: string
@@ -489,22 +488,22 @@ interface Insight {
   severity: 'info' | 'warning' | 'critical'
 }
 
-interface UserData {
-  id: string
-  name: string
-  avatar?: string
-  role?: string
-  sessionCount: number
-  joinDate: string
-  lastActiveDate: string
-  latestScore: number
-  avgScore: number
-  standardDeviation: number
-  weeklyTrend: number
-  scoreTrend: number
-  sessions: Session[]
-  insights: Insight[]
-}
+// interface UserData {
+//   id: string
+//   name: string
+//   avatar?: string
+//   role?: string
+//   sessionCount: number
+//   joinDate: string
+//   lastActiveDate: string
+//   latestScore: number
+//   avgScore: number
+//   standardDeviation: number
+//   weeklyTrend: number
+//   scoreTrend: number
+//   sessions: Session[]
+//   insights: Insight[]
+// }
 
 const route = useRoute()
 const router = useRouter()
@@ -544,7 +543,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const member = ref<Member | null>(null)
 const memberDashboard = ref<MemberDashboard | null>(null)
-const timeRange = ref('30d')
+// const timeRange = ref('30d')  // Unused
 const sessionSearch = ref('')
 const currentSessionPage = ref(1)
 const sessionsPerPage = 10
@@ -556,9 +555,9 @@ const toggleMobileMenu = () => {
 }
 
 // Close mobile menu when clicking outside or navigating
-const closeMobileMenu = () => {
-  mobileMenuOpen.value = false
-}
+// const _closeMobileMenu = () => {
+//   mobileMenuOpen.value = false
+// }
 
 // Pupil chart date navigation state
 const pupilViewMode = ref<'day' | 'week' | 'month'>('day')
@@ -678,7 +677,7 @@ const totalSessionPages = computed(() => Math.ceil(filteredSessions.value.length
 const variabilityTrendData = computed(() => {
   if (!memberDashboard.value) return [65, 72, 68, 75, 70, 78, 72, 80, 75, 72]
   // Use fatigue timeline scores for trend visualization
-  return memberDashboard.value.fatigueTimeline.slice(-10).map(d => d.score)
+  return memberDashboard.value.fatigueTimeline.slice(-10).map((d: any) => d.score)
 })
 
 // Chart options - use member dashboard data with dynamic date selection
@@ -691,8 +690,8 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
   const gridColor = isDark.value ? '#334155' : '#E2E8F0'
   
   // Use real data from fatigueTimeline
-  const timeLabels = memberDashboard.value.fatigueTimeline.map(d => d.date)
-  const fatigueScores = memberDashboard.value.fatigueTimeline.map(d => d.score)
+  const timeLabels = memberDashboard.value.fatigueTimeline.map((d: any) => d.date)
+  const fatigueScores = memberDashboard.value.fatigueTimeline.map((d: any) => d.score)
   
   return {
     tooltip: {
@@ -780,7 +779,7 @@ const blinkDurationOption = computed<EChartsOption>(() => {
     grid: { top: 20, right: 20, bottom: 50, left: 50 },
     xAxis: {
       type: 'category',
-      data: data.map(d => d.session),
+      data: data.map((d: any) => d.session),
       axisLabel: { color: textColor, rotate: 15 }
     },
     yAxis: {
@@ -792,13 +791,13 @@ const blinkDurationOption = computed<EChartsOption>(() => {
       {
         name: 'Left Eye',
         type: 'bar',
-        data: data.map(d => d.leftBlinks),
+        data: data.map((d: any) => d.leftBlinks),
         itemStyle: { color: '#3B82F6', borderRadius: [4, 4, 0, 0] }
       },
       {
         name: 'Right Eye',
         type: 'bar',
-        data: data.map(d => d.rightBlinks),
+        data: data.map((d: any) => d.rightBlinks),
         itemStyle: { color: '#8B5CF6', borderRadius: [4, 4, 0, 0] }
       }
     ]
@@ -840,9 +839,9 @@ const pupilSizeOption = computed<EChartsOption>(() => {
   }
   
   // Extract data from pupilTracking
-  const timeLabels = data.map(d => d.time)
-  const leftPupilData = data.map(d => d.leftPupil)
-  const rightPupilData = data.map(d => d.rightPupil)
+  const timeLabels = data.map((d: any) => d.time)
+  const leftPupilData = data.map((d: any) => d.leftPupil)
+  const rightPupilData = data.map((d: any) => d.rightPupil)
   
   // Calculate moving averages
   const leftMA = calculateMovingAverage(leftPupilData, 3)
@@ -1046,7 +1045,7 @@ const fetchUserData = async () => {
     
     // Fetch full storage data for each score to get blink and pupil information
     const sessionsWithData = await Promise.all(
-      scores.slice(-10).map(async (score) => {
+      scores.slice(-10).map(async (score: any) => {
         try {
           const storage = await getStorage(score.key)
           const data = storage.data || {}
@@ -1081,15 +1080,15 @@ const fetchUserData = async () => {
     )
     
     // Calculate statistics from scores
-    const scoreValues = scores.map(s => Number(s.score))
+    const scoreValues = scores.map((s: any) => Number(s.score))
     const latestScore = scoreValues.length > 0 ? scoreValues[scoreValues.length - 1] : 0
     const avgScore = scoreValues.length > 0 
-      ? scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length 
+      ? scoreValues.reduce((a: number, b: number) => a + b, 0) / scoreValues.length 
       : 0
     
     // Calculate standard deviation
     const variance = scoreValues.length > 0
-      ? scoreValues.reduce((sum, val) => sum + Math.pow(val - avgScore, 2), 0) / scoreValues.length
+      ? scoreValues.reduce((sum: number, val: number) => sum + Math.pow(val - avgScore, 2), 0) / scoreValues.length
       : 0
     const stdDev = Math.sqrt(variance)
     
@@ -1100,21 +1099,22 @@ const fetchUserData = async () => {
       pin: userProfile.pin || String(userProfile.id),
       avatarUrl: avatarUrl,
       sessionCount: scores.length,
-      fatigueScore: latestScore,
+      fatigueScore: latestScore || 0,
       role: 'Player',
-      joinDate: userProfile.created_at,
-      lastActiveDate: scores.length > 0 ? scores[scores.length - 1].created_at : userProfile.created_at
+      joinDate: new Date().toISOString(), // UserProfile doesn't have created_at
+      lastActiveDate: scores.length > 0 ? (scores[scores.length - 1]?.created_at || new Date().toISOString()) : new Date().toISOString()
     }
     
     // Create blink analytics from sessions
-    const blinkAnalytics = sessionsWithData.map((session, idx) => ({
+    const blinkAnalytics = sessionsWithData.map((session: any, idx: number) => ({
       session: `S${idx + 1}`,
       leftBlinks: session.leftBlinkCount || 0,
-      rightBlinks: session.rightBlinkCount || 0
+      rightBlinks: session.rightBlinkCount || 0,
+      avgFrequency: 15.0  // Default average frequency
     }))
     
     // Create pupil tracking data from sessions
-    const pupilTracking = sessionsWithData.map((session, idx) => {
+    const pupilTracking = sessionsWithData.map((session: any, _idx: number) => {
       const date = new Date(session.created_at)
       return {
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
@@ -1127,19 +1127,19 @@ const fetchUserData = async () => {
     memberDashboard.value = {
       memberId: String(userProfile.id),
       summary: {
-        latestFatigueScore: latestScore,
+        latestFatigueScore: latestScore || 0,
         averageScore: Math.round(avgScore * 100) / 100,
         standardDeviation: Math.round(stdDev * 100) / 100,
         variabilityTrend: stdDev > 20 ? 70 : 50,
         totalSessions: scores.length
       },
-      fatigueTimeline: scores.slice(-10).map(s => ({
+      fatigueTimeline: scores.slice(-10).map((s: any) => ({
         date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         score: Number(s.score)
       })),
       blinkAnalytics,
       pupilTracking,
-      recentSessions: sessionsWithData.slice(-5).reverse().map((session, idx) => ({
+      recentSessions: sessionsWithData.slice(-5).reverse().map((session: any, _idx: number) => ({
         sessionId: session.key.substring(0, 8).toUpperCase(),
         date: session.created_at,
         duration: 60, // 60 seconds from our generated data
@@ -1418,10 +1418,11 @@ const getInitials = (name: string) => {
   return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 }
 
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return 'N/A'
-  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
+// Helpers - keep for future use
+// const _formatDate = (dateStr?: string) => {
+//   if (!dateStr) return 'N/A'
+//   return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+// }
 
 const formatDateTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -1433,11 +1434,12 @@ const formatDuration = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
-const getScoreColorType = (score: number) => {
-  if (score < 40) return 'success'
-  if (score < 60) return 'warning'
-  return 'danger'
-}
+// Score color helper - keep for future use
+// const _getScoreColorType = (score: number) => {
+//   if (score < 40) return 'success'
+//   if (score < 60) return 'warning'
+//   return 'danger'
+// }
 
 const getScoreClass = (score: number) => {
   if (score < 40) return 'low'

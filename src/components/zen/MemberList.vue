@@ -61,7 +61,7 @@ const existingPins = computed(() => {
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; password: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
 }>()
 
 // Modal state
@@ -79,7 +79,7 @@ const openCreateUserModal = () => {
   showCreateUserModal.value = true
 }
 
-const handleCreateUser = (userData: { pin: string; username: string; password: string; avatar: File | null; avatarUrl: string | null }) => {
+const handleCreateUser = (userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }) => {
   // Emit to parent component for handling (adding to list, API call, etc.)
   emit('create-user', userData)
 }

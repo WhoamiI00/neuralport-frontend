@@ -20,7 +20,10 @@ export default defineComponent({
         }
     },
     created() {
-        if (browser && browser.name) document.getElementsByTagName("html")[0].classList.add(browser.name)
+        if (browser && browser.name) {
+            const htmlElement = document.getElementsByTagName("html")[0]
+            if (htmlElement) htmlElement.classList.add(browser.name)
+        }
     }
 })
 </script>
