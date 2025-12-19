@@ -21,6 +21,8 @@
     "element-plus": "^2.12.0",
     "flex.box": "^3.4.4",
     "highlight.js": "^11.11.1",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
     "lodash": "^4.17.21",
     "mavon-editor": "^2.10.4",
     "pinia": "^3.0.4",

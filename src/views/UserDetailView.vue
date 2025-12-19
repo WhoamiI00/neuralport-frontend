@@ -1332,7 +1332,7 @@ const exportReport = async () => {
       height: captureHeight,
       windowWidth: containerWidth,
       windowHeight: captureHeight,
-      onclone: (clonedDoc) => {
+      onclone: (clonedDoc: Document) => {
         const clonedContainer = clonedDoc.querySelector('div[style*="position: fixed"]') as HTMLElement
         if (clonedContainer) {
           clonedContainer.style.display = 'block'
