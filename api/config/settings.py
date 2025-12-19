@@ -65,10 +65,15 @@ CORS_ALLOWED_ORIGINS = [
 if os.environ.get("FRONTEND_URL"):
     CORS_ALLOWED_ORIGINS.append(os.environ.get("FRONTEND_URL"))
 
-# Allow all origins in development (not recommended for production)
-# CORS_ALLOW_ALL_ORIGINS = DEBUG
+# Allow all origins for VR devices (they don't send Origin headers)
+# VR headsets make direct HTTP requests without browser CORS restrictions
+CORS_ALLOW_ALL_ORIGINS = True  # Required for VR device API access
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Handle large VR payloads (eye tracking data can be 6-10MB)
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024  # 20MB
 
 ROOT_URLCONF = 'config.urls'
 
