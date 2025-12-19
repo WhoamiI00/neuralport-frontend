@@ -25,12 +25,18 @@ load_dotenv(BASE_DIR / ".env")
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-x6n*kccr6p+3(#5@^_^p-rd5!2f)bz@zo%z-4o8m94k=&_@dfi'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-x6n*kccr6p+3(#5@^_^p-rd5!2f)bz@zo%z-4o8m94k=&_@dfi')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""),
+]
+if os.environ.get("ALLOWED_HOSTS"):
+    ALLOWED_HOSTS.extend(os.environ.get("ALLOWED_HOSTS").split(","))
 
 
 # Application definition
@@ -42,7 +48,10 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',  # Security middleware
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static files
+    'corsheaders.middleware.CorsMiddleware',  # CORS
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',  # Clickjacking protection
 ]
 
 # CORS settings
@@ -51,6 +60,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vue (default)
     "http://localhost:5174",  # Vue (current)
 ]
+
+# Add production frontend URL from environment
+if os.environ.get("FRONTEND_URL"):
+    CORS_ALLOWED_ORIGINS.append(os.environ.get("FRONTEND_URL"))
+
+# Allow all origins in development (not recommended for production)
+# CORS_ALLOW_ALL_ORIGINS = DEBUG
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -136,4 +152,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise configuration for serving static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
