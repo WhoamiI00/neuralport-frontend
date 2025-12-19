@@ -104,12 +104,27 @@ export const useAuthStore = defineStore('auth', () => {
     })
 
     if (!response.ok) {
+      // If token is invalid/expired, clear auth state
+      if (response.status === 401) {
+        console.warn('Token expired or invalid, logging out')
+        await signOut()
+      }
       throw new Error('Failed to fetch user')
     }
 
     const data = await response.json()
     user.value = data.user
     localStorage.setItem('auth_user', JSON.stringify(data.user))
+  }
+
+  async function validateToken() {
+    // Check if token is still valid by calling /me
+    try {
+      await fetchCurrentUser()
+      return true
+    } catch (error) {
+      return false
+    }
   }
 
   return {
@@ -121,5 +136,6 @@ export const useAuthStore = defineStore('auth', () => {
     signIn,
     signOut,
     fetchCurrentUser,
+    validateToken,
   }
 })

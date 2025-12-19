@@ -588,6 +588,9 @@ export default defineComponent({
         async initChart1() {
             const { lineData, barData, start, end } = await this.fetchChartData()
             
+            // Update stats after chart data is loaded (for regular users)
+            this.updateGlobalStats()
+            
             this.chart1 = echarts.init(document.getElementById("chart1"))
             
             const dayStartMs = start.getTime()
@@ -750,13 +753,6 @@ export default defineComponent({
         },
         
         async fetchGroup() {
-            // Only fetch if admin
-            if (!this.isAdmin) {
-                this.members = []
-                this.group = []
-                return
-            }
-            
             try {
                 const users = await getUsersByGroup(1)
                 this.group = users || []
@@ -793,16 +789,32 @@ export default defineComponent({
                         }
                     })
                     
-                    // Calculate real stats from actual data - show N/A if not available
-                    this.globalStats = {
-                        totalUsers: this.members.length,
-                        totalSessions: 'N/A',
-                        avgResponse: 'N/A',
-                        accuracyRate: 'N/A'
-                    }
+                    // Update stats after members are loaded
+                    this.updateGlobalStats()
                 }
             } catch (err) {
                 console.error('fetchGroup error', err)
+            }
+        },
+        
+        updateGlobalStats() {
+            // Calculate stats based on whether admin or regular user
+            if (this.isAdmin) {
+                // Admin sees all users stats
+                this.globalStats = {
+                    totalUsers: this.members.length,
+                    totalSessions: 'N/A',
+                    avgResponse: 'N/A',
+                    accuracyRate: 'N/A'
+                }
+            } else {
+                // Regular user sees their own stats (calculated from chart data)
+                this.globalStats = {
+                    totalUsers: 1,  // Always 1 for regular users (themselves)
+                    totalSessions: this.totalDataPoints || 0,
+                    avgResponse: this.average > 0 ? this.average.toFixed(1) : '0.0',
+                    accuracyRate: this.standard_deviation > 0 ? this.standard_deviation.toFixed(1) : '0.0'
+                }
             }
         },
         

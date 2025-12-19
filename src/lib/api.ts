@@ -13,6 +13,30 @@ function getAuthHeaders() {
   }
 }
 
+// Helper to handle API responses with 401 auto-logout
+async function handleApiResponse(response: Response) {
+  if (response.status === 401) {
+    // Token expired - clear auth and redirect to login
+    console.warn('Token expired, clearing auth state')
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    
+    // Redirect to login (if not already there)
+    if (window.location.pathname !== '/login') {
+      window.location.href = '/login?expired=true'
+    }
+    
+    throw new Error('Session expired. Please login again.')
+  }
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `API error (${response.status})`)
+  }
+  
+  return response.json()
+}
+
 // ============================================================================
 // PROFILE API
 // ============================================================================
@@ -23,12 +47,7 @@ export async function fetchProfile(userId: string | number) {
     credentials: 'include'
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to fetch profile (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 // ============================================================================
@@ -59,12 +78,7 @@ export async function insertStorage(storageData: StorageData): Promise<StorageRe
     body: JSON.stringify(storageData)
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to insert storage (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 export async function getStorage(key: string): Promise<StorageResponse> {
@@ -73,12 +87,7 @@ export async function getStorage(key: string): Promise<StorageResponse> {
     credentials: 'include'
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to get storage (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 // ============================================================================
@@ -101,12 +110,7 @@ export async function listScores(tenantId: number, userId: number): Promise<Scor
     }
   )
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to list scores (${response.status})`)
-  }
-
-  const data = await response.json()
+  const data = await handleApiResponse(response)
   return data.scores || []
 }
 
@@ -119,12 +123,7 @@ export async function getLatestScore(tenantId: number, userId: number): Promise<
     }
   )
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to get latest score (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 // ============================================================================
@@ -147,12 +146,7 @@ export async function getUser(userId: number): Promise<UserProfile> {
     credentials: 'include'
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to get user (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 export async function getUsersByGroup(linkId: number): Promise<UserProfile[]> {
@@ -161,12 +155,7 @@ export async function getUsersByGroup(linkId: number): Promise<UserProfile[]> {
     credentials: 'include'
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to get users by group (${response.status})`)
-  }
-
-  const data = await response.json()
+  const data = await handleApiResponse(response)
   return data.user || []  // Backend returns "user" key for compatibility
 }
 
@@ -196,12 +185,7 @@ export async function createUser(userData: CreateUserRequest): Promise<CreateUse
     body: JSON.stringify(userData)
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to create user (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 export interface RenameUserRequest {
@@ -217,12 +201,7 @@ export async function renameUser(data: RenameUserRequest): Promise<{ success: bo
     body: JSON.stringify(data)
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to rename user (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 export interface UpdateAvatarRequest {
@@ -238,12 +217,7 @@ export async function updateAvatar(data: UpdateAvatarRequest): Promise<{ success
     body: JSON.stringify(data)
   })
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new Error(errorData.error || `Failed to update avatar (${response.status})`)
-  }
-
-  return response.json()
+  return handleApiResponse(response)
 }
 
 // Export convenience object with all API functions

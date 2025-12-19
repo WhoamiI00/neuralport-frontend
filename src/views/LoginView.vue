@@ -189,6 +189,12 @@ async function handleLogin() {
 onMounted(() => {
     initDarkMode()
     watchSystemPreference()
+    
+    // Check if redirected due to token expiration
+    if (route.query.expired === 'true') {
+        error.value = 'Your session has expired. Please login again.'
+    }
+    
     setTimeout(() => {
         isPageLoaded.value = true
     }, 100)
