@@ -256,8 +256,8 @@ const handleOptionClick = (option: { id: string; label: string }) => {
   }
 }
 
-const handleLogout = () => {
-  authStore.signOut()
+const handleLogout = async () => {
+  await authStore.signOut()
   router.push('/login')
 }
 
