@@ -184,12 +184,13 @@ def me(request):
         return JsonResponse({"error": "Authentication required"}, status=401)
     
     token = auth_header.split(" ", 1)[1]
-    session = Session.get_valid_session(token)
-    
-    if not session:
-        return JsonResponse({"error": "Invalid or expired token"}, status=401)
     
     try:
+        session = Session.get_valid_session(token)
+        
+        if not session:
+            return JsonResponse({"error": "Invalid or expired token"}, status=401)
+        
         # Check if this is an admin session
         if session.is_admin:
             return JsonResponse({
@@ -220,9 +221,10 @@ def me(request):
             }
         }, status=200)
     except Exception as e:
-        print(f"Error in /me: {e}")
+        print(f"ERROR in /api/auth/me: {e}")
+        print(f"ERROR type: {type(e).__name__}")
         traceback.print_exc()
-        return JsonResponse({"error": "User not found"}, status=404)
+        return JsonResponse({"error": f"Internal error: {str(e)}"}, status=500)
 
 
 def get_authenticated_user(request):
