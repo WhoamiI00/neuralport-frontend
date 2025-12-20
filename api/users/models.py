@@ -92,7 +92,7 @@ class Session(models.Model):
     def get_valid_session(cls, token: str):
         """Get session if valid, delete if expired"""
         try:
-            session = cls.objects.select_related('tenant', 'user').get(token=token)
+            session = cls.objects.select_related('tenant', 'user__tenant').get(token=token)
             if session.is_valid():
                 return session
             else:
