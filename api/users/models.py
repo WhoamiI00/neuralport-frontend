@@ -73,7 +73,12 @@ class Session(models.Model):
 
     def is_valid(self) -> bool:
         """Check if session is still valid"""
-        return timezone.now() < self.expires_at
+        now = timezone.now()
+        # Handle both naive and aware datetimes
+        expires = self.expires_at
+        if timezone.is_naive(expires):
+            expires = timezone.make_aware(expires)
+        return now < expires
 
     @classmethod
     def create_session(cls, token: str, tenant, user=None, device_id=None, pin=None, is_admin=False, hours=24):
