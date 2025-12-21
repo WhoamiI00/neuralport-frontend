@@ -34,8 +34,8 @@
       <div class="dashboard-content">
         <!-- Loading State -->
         <div v-if="loading" class="loading-state">
-          <i class="mdi mdi-loading mdi-spin"></i>
-          <span>Loading dashboard data...</span>
+          <CustomLoader />
+          <span class="loading-text">Loading dashboard data...</span>
         </div>
 
         <template v-else>
@@ -167,6 +167,7 @@ import Sidebar from '../components/zen/Sidebar.vue'
 import ThemeToggle from '../components/zen/ThemeToggle.vue'
 import LanguageToggle from '../components/zen/LanguageToggle.vue'
 import MemberSummaryCard from '../components/zen/MemberSummaryCard.vue'
+import CustomLoader from '../components/zen/CustomLoader.vue'
 
 export default defineComponent({
     name: "Dashboard",
@@ -174,7 +175,8 @@ export default defineComponent({
         Sidebar, 
         ThemeToggle, 
         LanguageToggle, 
-        MemberSummaryCard 
+        MemberSummaryCard,
+        CustomLoader 
     },
     props: {
         login_user_id_from_path: { type: String, required: false }
@@ -986,15 +988,12 @@ export default defineComponent({
   align-items: center;
   justify-content: center;
   min-height: 50vh;
-  gap: $space-3;
+  gap: $space-4;
 
-  i {
-    font-size: 48px;
-    color: var(--zen-accent-teal);
-  }
-
-  span {
+  .loading-text {
     color: var(--zen-text-secondary);
+    font-size: 16px;
+    font-weight: 500;
   }
 }
 
