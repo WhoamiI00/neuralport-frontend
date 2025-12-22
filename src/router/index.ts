@@ -53,8 +53,9 @@ router.beforeEach(async (to, _from, next) => {
     await authStore.initialize()
   }
 
-  // Validate token before accessing protected routes
-  if (to.meta.requiresAuth && authStore.isAuthenticated) {
+  // Only validate token if coming from login or on first load
+  // Don't validate on every navigation to avoid excessive API calls
+  if (to.meta.requiresAuth && authStore.isAuthenticated && !authStore.user) {
     const isValid = await authStore.validateToken()
     if (!isValid) {
       // Token expired, redirect to login
