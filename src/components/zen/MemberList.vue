@@ -8,6 +8,7 @@
 
     <!-- Add New User Button -->
     <button 
+      v-if="isAdmin"
       class="add-user-btn" 
       @click="openCreateUserModal"
     >
@@ -45,10 +46,12 @@ import CreateUserModal from './CreateUserModal.vue'
 interface Props {
   members: Member[]
   selectedMemberId?: string | null
+  isAdmin?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  selectedMemberId: null
+  selectedMemberId: null,
+  isAdmin: false
 })
 
 // Computed: Extract all existing PINs from members

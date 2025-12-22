@@ -4,6 +4,7 @@
     <Sidebar 
       :members="members" 
       :selected-member-id="selectedMemberId"
+      :is-admin="isAdmin"
       @select-member="handleMemberSelect"
       @deselect-member="handleMemberDeselect"
       @view-details="navigateToUserDetails"
@@ -335,6 +336,16 @@ export default defineComponent({
                 : (authStore.user?.id || '')
         },
         
+        getTenantId() {
+            if (this.selectedMemberId) {
+                const member = this.members.find(m => m.id === this.selectedMemberId)
+                if (member?.tenantId) return member.tenantId
+            }
+            
+            const authStore = useAuthStore()
+            return parseInt(authStore.user?.tenant_id || '1')
+        },
+        
         prev() {
             this.current =
                 this.mode === "Day" ? addDays(this.current, -1) :
@@ -469,6 +480,7 @@ export default defineComponent({
             const auth = useAuthStore()
             const token = auth.token
             const user_id = this.getUserId()
+            const tenant_id = this.getTenantId()
             let start, end
             
             if (this.mode === "Day") {
@@ -491,7 +503,7 @@ export default defineComponent({
             })
 
             try {
-                const scores = await listScores(1, parseInt(user_id))
+                const scores = await listScores(tenant_id, parseInt(user_id))
                 console.log('📥 Received scores from API:', scores.length, 'total scores')
 
                 const items = Array.isArray(scores) ? scores : []
@@ -734,8 +746,9 @@ export default defineComponent({
         
         async fetchLatest() {
             const user_id = this.getUserId()
+            const tenant_id = this.getTenantId()
             try {
-                const data = await getLatestScore(1, parseInt(user_id))
+                const data = await getLatestScore(tenant_id, parseInt(user_id))
                 this.latest_score = {
                     score_value: data.score?.score ?? 0.0,
                     createdAt: data.score?.createdAt ?? ""
@@ -786,6 +799,7 @@ export default defineComponent({
                             name: displayName,
                             pin: pin,
                             avatarUrl: avatarUrl,
+                            tenantId: user.tenant_id,
                             fatigueScore: 0,
                             status: 'normal'
                         }
@@ -793,6 +807,11 @@ export default defineComponent({
                     
                     // Update stats after members are loaded
                     this.updateGlobalStats()
+                    
+                    // Auto-select member for regular users (only 1 member - themselves)
+                    if (!this.isAdmin && this.members.length === 1) {
+                        this.selectedMemberId = this.members[0].id
+                    }
                 }
             } catch (err) {
                 console.error('fetchGroup error', err)

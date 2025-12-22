@@ -76,6 +76,7 @@
             key="members"
             :members="members"
             :selected-member-id="selectedMemberId"
+            :is-admin="isAdmin"
             @select-member="handleMemberSelect"
             @view-details="handleViewDetails"
             @create-user="handleCreateUser"
@@ -129,10 +130,12 @@ import SidebarOptions from './SidebarOptions.vue'
 interface Props {
   members: Member[]
   selectedMemberId?: string | null
+  isAdmin?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  selectedMemberId: null
+  selectedMemberId: null,
+  isAdmin: false
 })
 
 const emit = defineEmits<{
