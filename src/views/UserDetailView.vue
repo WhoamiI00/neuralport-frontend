@@ -467,7 +467,7 @@ import AverageScoreCard from '@/components/zen/AverageScoreCard.vue'
 import StandardDeviationCard from '@/components/zen/StandardDeviationCard.vue'
 import {
   format, startOfDay, endOfDay, startOfWeek, endOfWeek, 
-  startOfMonth, endOfMonth, parseISO
+  startOfMonth, endOfMonth
 } from 'date-fns'
 
 // Import data modules
@@ -792,7 +792,7 @@ const filteredFatigueData = computed(() => {
     
     // If we have data, create a result that includes all data points plus some spacing
     if (datesWithData.length > 0) {
-      const result = []
+      const result: { date: string; score: number | null }[] = []
       const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate()
       const step = Math.max(2, Math.floor(daysInMonth / 15))
       
@@ -819,8 +819,10 @@ const filteredFatigueData = computed(() => {
       
       // Sort by date
       result.sort((a, b) => {
-        const [aMonth, aDay] = a.date.split('/').map(Number)
-        const [bMonth, bDay] = b.date.split('/').map(Number)
+        const aParts = a.date.split('/').map(Number)
+        const bParts = b.date.split('/').map(Number)
+        const aDay = aParts[1] || 0
+        const bDay = bParts[1] || 0
         return aDay - bDay
       })
       
@@ -954,8 +956,10 @@ const filteredPupilData = computed(() => {
       
       // Sort by date
       result.sort((a, b) => {
-        const [aMonth, aDay] = a.time.split('/').map(Number)
-        const [bMonth, bDay] = b.time.split('/').map(Number)
+        const aParts = a.time.split('/').map(Number)
+        const bParts = b.time.split('/').map(Number)
+        const aDay = aParts[1] || 0
+        const bDay = bParts[1] || 0
         return aDay - bDay
       })
     } else {
@@ -1124,6 +1128,7 @@ const blinkDurationOption = computed<EChartsOption>(() => {
       formatter: (params: any) => {
         const dataIndex = params[0].dataIndex
         const sessionData = data[dataIndex]
+        if (!sessionData) return ''
         return `${sessionData.date}<br/>Left Eye: ${sessionData.leftBlinks}<br/>Right Eye: ${sessionData.rightBlinks}`
       }
     },
