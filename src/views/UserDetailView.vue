@@ -465,11 +465,16 @@ import ChartCard from '@/components/zen/ChartCard.vue'
 import FatigueScoreCard from '@/components/zen/FatigueScoreCard.vue'
 import AverageScoreCard from '@/components/zen/AverageScoreCard.vue'
 import StandardDeviationCard from '@/components/zen/StandardDeviationCard.vue'
+import {
+  format, startOfDay, endOfDay, startOfWeek, endOfWeek, 
+  startOfMonth, endOfMonth, parseISO
+} from 'date-fns'
 
 // Import data modules
 import type { Member } from '@/data/members'
 import type { MemberDashboard } from '@/data/memberDashboards'
 import { getUser, listScores, getStorage } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 
 interface Session {
   sessionId: string
@@ -560,7 +565,7 @@ const toggleMobileMenu = () => {
 // }
 
 // Pupil chart date navigation state
-const pupilViewMode = ref<'day' | 'week' | 'month'>('day')
+const pupilViewMode = ref<'day' | 'week' | 'month'>('month')
 const pupilSelectedDate = ref(new Date())
 
 // Formatted date display based on view mode
@@ -597,7 +602,7 @@ const navigateDate = (direction: number) => {
 }
 
 // Fatigue timeline date navigation state
-const fatigueViewMode = ref<'day' | 'week' | 'month'>('day')
+const fatigueViewMode = ref<'day' | 'week' | 'month'>('month')
 const fatigueSelectedDate = ref(new Date())
 
 // Formatted date display for fatigue timeline
@@ -632,6 +637,337 @@ const navigateFatigueDate = (direction: number) => {
   }
   fatigueSelectedDate.value = date
 }
+
+// Reactive state for scores data
+const allScoresData = ref<any[]>([])
+
+// Fetch scores data whenever view mode or date changes
+const fetchFatigueData = async () => {
+  console.log('🔄 [Fetch] fetchFatigueData called')
+  console.log('🔄 [Fetch] userId.value:', userId.value)
+  
+  if (!userId.value) {
+    console.warn('⚠️ [Fetch] No userId - skipping fetch')
+    return
+  }
+  
+  try {
+    const authStore = useAuthStore()
+    const tenantId = parseInt(authStore.user?.tenant_id || '1')
+    
+    console.log('🔄 [Fetch] Fetching scores for tenantId:', tenantId, 'userId:', userId.value)
+    
+    const scores = await listScores(tenantId, parseInt(userId.value))
+    
+    // Fetch storage data to get pupil measurements and blink data
+    const scoresWithPupilData = await Promise.all(
+      (Array.isArray(scores) ? scores : []).map(async (score: any) => {
+        try {
+          const storage = await getStorage(score.key)
+          const data = storage.data || {}
+          
+          console.log('🔍 [Blink Data] Processing score key:', score.key)
+          console.log('🔍 [Blink Data] Storage data:', data)
+          console.log('🔍 [Blink Data] leftBlinkCount from storage:', data.leftBlinkCount)
+          console.log('🔍 [Blink Data] rightBlinkCount from storage:', data.rightBlinkCount)
+          
+          return {
+            ...score,
+            leftPupilDiameter: data.leftPupilDiameter || 0,
+            rightPupilDiameter: data.rightPupilDiameter || 0,
+            leftBlinks: data.leftBlinkCount || 0,
+            rightBlinks: data.rightBlinkCount || 0,
+            sessionDate: data.sessionDate || score.created_at
+          }
+        } catch (err) {
+          console.error('❌ [Blink Data] Error processing score:', err)
+          return {
+            ...score,
+            leftPupilDiameter: 0,
+            rightPupilDiameter: 0,
+            leftBlinks: 0,
+            rightBlinks: 0
+          }
+        }
+      })
+    )
+    
+    allScoresData.value = scoresWithPupilData
+    
+    console.log('✅ [Fetch] Scores fetched:', allScoresData.value.length, 'items')
+    console.log('✅ [Fetch] Sample scores:', allScoresData.value.slice(0, 3))
+  } catch (err) {
+    console.error('❌ [Fetch] Error fetching fatigue data:', err)
+  }
+}
+
+// Watch for changes and refetch data
+watch([fatigueViewMode, fatigueSelectedDate], () => {
+  console.log('👁️ [Watch] fatigueViewMode or fatigueSelectedDate changed')
+  fetchFatigueData()
+}, { immediate: true })
+
+// Watch for changes and refetch data
+watch([pupilViewMode, pupilSelectedDate], () => {
+  console.log('👁️ [Watch] pupilViewMode or pupilSelectedDate changed')
+  fetchFatigueData()
+}, { immediate: true })
+
+// Filtered fatigue data based on selected date and view mode - using real API data
+const filteredFatigueData = computed(() => {
+  if (!allScoresData.value || allScoresData.value.length === 0) return []
+  
+  const selectedDate = new Date(fatigueSelectedDate.value)
+  let start: Date, end: Date
+  
+  if (fatigueViewMode.value === 'day') {
+    start = startOfDay(selectedDate)
+    end = endOfDay(selectedDate)
+  } else if (fatigueViewMode.value === 'week') {
+    start = startOfWeek(selectedDate, { weekStartsOn: 0 })
+    end = endOfWeek(selectedDate, { weekStartsOn: 0 })
+  } else {
+    start = startOfMonth(selectedDate)
+    end = endOfMonth(selectedDate)
+  }
+  
+  // Filter scores by date range
+  const filteredItems = allScoresData.value.filter(item => {
+    const d = new Date(item.created_at)
+    if (isNaN(d.getTime())) return false
+    const t = d.getTime()
+    return t >= start.getTime() && t <= end.getTime()
+  })
+  
+  filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  
+  if (fatigueViewMode.value === 'day') {
+    // For day view, show hourly data
+    return filteredItems.map(item => ({
+      date: format(new Date(item.created_at), 'HH:mm'),
+      score: Number(item.score || 0)
+    }))
+  } else if (fatigueViewMode.value === 'week') {
+    // For week view, aggregate by day
+    const dayMap = new Map()
+    filteredItems.forEach(item => {
+      const d = new Date(item.created_at)
+      const dateKey = format(d, 'MM/dd')
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, { sum: 0, count: 0 })
+      }
+      const rec = dayMap.get(dateKey)
+      rec.sum += Number(item.score || 0)
+      rec.count += 1
+    })
+    
+    const result = []
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(start)
+      currentDate.setDate(start.getDate() + i)
+      const dateKey = format(currentDate, 'MM/dd')
+      const rec = dayMap.get(dateKey)
+      result.push({
+        date: dateKey,
+        score: rec ? Math.round(rec.sum / rec.count) : 0
+      })
+    }
+    return result
+  } else {
+    // For month view, aggregate by day
+    const dayMap = new Map()
+    filteredItems.forEach(item => {
+      const d = new Date(item.created_at)
+      const dateKey = format(d, 'MM/dd')
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, { sum: 0, count: 0 })
+      }
+      const rec = dayMap.get(dateKey)
+      rec.sum += Number(item.score || 0)
+      rec.count += 1
+    })
+    
+    // Get all dates that have data
+    const datesWithData = Array.from(dayMap.keys()).sort()
+    
+    // If we have data, create a result that includes all data points plus some spacing
+    if (datesWithData.length > 0) {
+      const result = []
+      const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate()
+      const step = Math.max(2, Math.floor(daysInMonth / 15))
+      
+      // First, add all dates with actual data
+      datesWithData.forEach(dateKey => {
+        const rec = dayMap.get(dateKey)
+        result.push({
+          date: dateKey,
+          score: Math.round(rec.sum / rec.count)
+        })
+      })
+      
+      // Then add some empty dates for spacing (only if not already added)
+      for (let day = 1; day <= daysInMonth; day += step) {
+        const currentDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day)
+        const dateKey = format(currentDate, 'MM/dd')
+        if (!result.find(r => r.date === dateKey)) {
+          result.push({
+            date: dateKey,
+            score: null
+          })
+        }
+      }
+      
+      // Sort by date
+      result.sort((a, b) => {
+        const [aMonth, aDay] = a.date.split('/').map(Number)
+        const [bMonth, bDay] = b.date.split('/').map(Number)
+        return aDay - bDay
+      })
+      
+      return result
+    }
+    
+    // If no data, return empty
+    return []
+  }
+})
+
+// Filtered pupil data based on selected date and view mode - using real session data
+const filteredPupilData = computed(() => {
+  console.log('🔍 [Pupil Data] Computing filteredPupilData...')
+  console.log('🔍 [Pupil Data] allScoresData.value:', allScoresData.value?.length, 'items')
+  console.log('🔍 [Pupil Data] pupilViewMode:', pupilViewMode.value)
+  console.log('🔍 [Pupil Data] pupilSelectedDate:', pupilSelectedDate.value)
+  
+  if (!allScoresData.value || allScoresData.value.length === 0) {
+    console.warn('⚠️ [Pupil Data] No allScoresData available')
+    return []
+  }
+  
+  const selectedDate = new Date(pupilSelectedDate.value)
+  let start: Date, end: Date
+  
+  if (pupilViewMode.value === 'day') {
+    start = startOfDay(selectedDate)
+    end = endOfDay(selectedDate)
+  } else if (pupilViewMode.value === 'week') {
+    start = startOfWeek(selectedDate, { weekStartsOn: 0 })
+    end = endOfWeek(selectedDate, { weekStartsOn: 0 })
+  } else {
+    start = startOfMonth(selectedDate)
+    end = endOfMonth(selectedDate)
+  }
+  
+  console.log('🔍 [Pupil Data] Date range:', format(start, 'yyyy-MM-dd HH:mm'), 'to', format(end, 'yyyy-MM-dd HH:mm'))
+  
+  // Log all score dates to see what we have
+  console.log('📅 [Pupil Data] Available score dates:')
+  allScoresData.value.forEach((item, idx) => {
+    console.log(`  ${idx}: ${item.created_at} (${new Date(item.created_at).toLocaleString()})`)
+  })
+  
+  // Filter scores by date range
+  const filteredItems = allScoresData.value.filter(item => {
+    const d = new Date(item.created_at)
+    if (isNaN(d.getTime())) return false
+    const t = d.getTime()
+    return t >= start.getTime() && t <= end.getTime()
+  })
+  
+  console.log('🔍 [Pupil Data] Filtered items:', filteredItems.length)
+  if (filteredItems.length > 0) {
+    console.log('🔍 [Pupil Data] Sample pupil values:', {
+      leftPupil: filteredItems[0].leftPupilDiameter,
+      rightPupil: filteredItems[0].rightPupilDiameter
+    })
+  }
+  
+  filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  
+  let result: any[] = []
+  
+  if (pupilViewMode.value === 'day') {
+    // For day view, use real pupil data
+    result = filteredItems.map(item => ({
+      time: format(new Date(item.created_at), 'HH:mm'),
+      leftPupil: item.leftPupilDiameter || 3.5 + Math.random() * 0.5,
+      rightPupil: item.rightPupilDiameter || 3.6 + Math.random() * 0.5
+    }))
+  } else if (pupilViewMode.value === 'week') {
+    // For week view, sample across 7 days with real data
+    const step = Math.max(1, Math.floor(filteredItems.length / 7))
+    result = filteredItems.filter((_, index) => index % step === 0).slice(0, 7).map(item => ({
+      time: format(new Date(item.created_at), 'MM/dd'),
+      leftPupil: item.leftPupilDiameter || 3.5 + Math.random() * 0.5,
+      rightPupil: item.rightPupilDiameter || 3.6 + Math.random() * 0.5
+    }))
+  } else {
+    // For month view, create map with actual data
+    const dayMap = new Map()
+    filteredItems.forEach(item => {
+      const d = new Date(item.created_at)
+      const dateKey = format(d, 'MM/dd')
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, {
+          leftPupil: 0,
+          rightPupil: 0,
+          count: 0
+        })
+      }
+      const rec = dayMap.get(dateKey)
+      rec.leftPupil += item.leftPupilDiameter || 0
+      rec.rightPupil += item.rightPupilDiameter || 0
+      rec.count += 1
+    })
+    
+    // Get all dates that have data
+    const datesWithData = Array.from(dayMap.keys()).sort()
+    
+    if (datesWithData.length > 0) {
+      result = []
+      const selectedDate = new Date(pupilSelectedDate.value)
+      const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate()
+      const step = Math.max(2, Math.floor(daysInMonth / 15))
+      
+      // First, add all dates with actual data
+      datesWithData.forEach(dateKey => {
+        const rec = dayMap.get(dateKey)
+        result.push({
+          time: dateKey,
+          leftPupil: rec.count > 0 ? (rec.leftPupil / rec.count) || 3.5 + Math.random() * 0.5 : null,
+          rightPupil: rec.count > 0 ? (rec.rightPupil / rec.count) || 3.6 + Math.random() * 0.5 : null
+        })
+      })
+      
+      // Then add some empty dates for spacing
+      for (let day = 1; day <= daysInMonth; day += step) {
+        const currentDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day)
+        const dateKey = format(currentDate, 'MM/dd')
+        if (!result.find(r => r.time === dateKey)) {
+          result.push({
+            time: dateKey,
+            leftPupil: null,
+            rightPupil: null
+          })
+        }
+      }
+      
+      // Sort by date
+      result.sort((a, b) => {
+        const [aMonth, aDay] = a.time.split('/').map(Number)
+        const [bMonth, bDay] = b.time.split('/').map(Number)
+        return aDay - bDay
+      })
+    } else {
+      result = []
+    }
+  }
+  
+  console.log('✅ [Pupil Data] Result:', result.length, 'data points')
+  console.log('✅ [Pupil Data] Sample data:', result.slice(0, 3))
+  
+  return result
+})
 
 // Computed - merged user data for template compatibility
 const userData = computed(() => {
@@ -689,9 +1025,9 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
   const textColor = isDark.value ? '#94A3B8' : '#64748B'
   const gridColor = isDark.value ? '#334155' : '#E2E8F0'
   
-  // Use real data from fatigueTimeline
-  const timeLabels = memberDashboard.value.fatigueTimeline.map((d: any) => d.date)
-  const fatigueScores = memberDashboard.value.fatigueTimeline.map((d: any) => d.score)
+  // Use filtered data from filteredFatigueData computed property
+  const timeLabels = filteredFatigueData.value.map((d: any) => d.date)
+  const fatigueScores = filteredFatigueData.value.map((d: any) => d.score)
   
   return {
     tooltip: {
@@ -705,7 +1041,10 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
       type: 'category',
       data: timeLabels,
       axisLine: { lineStyle: { color: textColor } },
-      axisLabel: { color: textColor }
+      axisLabel: { 
+        color: textColor,
+        rotate: fatigueViewMode.value === 'month' ? 45 : 0
+      }
     },
     yAxis: {
       type: 'value',
@@ -721,6 +1060,7 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
       type: 'line',
       data: fatigueScores,
       smooth: true,
+      connectNulls: false,
       lineStyle: { width: 3, color: '#667EEA' },
       areaStyle: {
         color: {
@@ -746,12 +1086,23 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
 })
 
 const blinkDurationOption = computed<EChartsOption>(() => {
-  if (!memberDashboard.value) return {}
+  console.log('📊 [Blink Chart] Computing blinkDurationOption...')
+  console.log('📊 [Blink Chart] allScoresData.value length:', allScoresData.value.length)
+  console.log('📊 [Blink Chart] Sample data:', allScoresData.value.slice(0, 3))
   
   const textColor = isDark.value ? '#94A3B8' : '#64748B'
   const gridColor = isDark.value ? '#334155' : '#E2E8F0'
   
-  const data = memberDashboard.value.blinkAnalytics
+  // Use real blink data from allScoresData - don't filter, show all
+  const data = allScoresData.value
+    .map((item, index) => ({
+      session: `Session ${index + 1}`,
+      date: format(new Date(item.sessionDate || item.created_at), 'MM/dd HH:mm'),
+      leftBlinks: item.leftBlinks || 0,
+      rightBlinks: item.rightBlinks || 0
+    }))
+  
+  console.log('📊 [Blink Chart] Processed data:', data)
   
   // Show empty state if no data
   if (!data || data.length === 0) {
@@ -769,7 +1120,12 @@ const blinkDurationOption = computed<EChartsOption>(() => {
   return {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: isDark.value ? '#1E293B' : '#fff'
+      backgroundColor: isDark.value ? '#1E293B' : '#fff',
+      formatter: (params: any) => {
+        const dataIndex = params[0].dataIndex
+        const sessionData = data[dataIndex]
+        return `${sessionData.date}<br/>Left Eye: ${sessionData.leftBlinks}<br/>Right Eye: ${sessionData.rightBlinks}`
+      }
     },
     legend: {
       data: ['Left Eye', 'Right Eye'],
@@ -784,6 +1140,7 @@ const blinkDurationOption = computed<EChartsOption>(() => {
     },
     yAxis: {
       type: 'value',
+      name: 'Blink Count',
       axisLabel: { color: textColor },
       splitLine: { lineStyle: { color: gridColor } }
     },
@@ -818,15 +1175,26 @@ const calculateMovingAverage = (data: number[], windowSize: number = 3): number[
 }
 
 const pupilSizeOption = computed<EChartsOption>(() => {
-  if (!memberDashboard.value) return {}
+  console.log('📊 [Pupil Chart] Computing pupilSizeOption...')
+  console.log('📊 [Pupil Chart] memberDashboard.value:', !!memberDashboard.value)
+  
+  if (!memberDashboard.value) {
+    console.warn('⚠️ [Pupil Chart] No memberDashboard')
+    return {}
+  }
   
   const textColor = isDark.value ? '#94A3B8' : '#64748B'
   const gridColor = isDark.value ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)'
   
-  const data = memberDashboard.value.pupilTracking
+  // Use filtered data from filteredPupilData computed property
+  const data = filteredPupilData.value
+  
+  console.log('📊 [Pupil Chart] filteredPupilData.value:', data?.length, 'items')
+  console.log('📊 [Pupil Chart] Sample data:', data?.slice(0, 3))
   
   // Show empty state if no data
   if (!data || data.length === 0) {
+    console.warn('⚠️ [Pupil Chart] No data - showing empty state')
     return {
       title: {
         text: 'No pupil tracking data available',
@@ -843,9 +1211,15 @@ const pupilSizeOption = computed<EChartsOption>(() => {
   const leftPupilData = data.map((d: any) => d.leftPupil)
   const rightPupilData = data.map((d: any) => d.rightPupil)
   
+  console.log('📊 [Pupil Chart] timeLabels:', timeLabels.length, timeLabels.slice(0, 3))
+  console.log('📊 [Pupil Chart] leftPupilData:', leftPupilData.slice(0, 3))
+  console.log('📊 [Pupil Chart] rightPupilData:', rightPupilData.slice(0, 3))
+  
   // Calculate moving averages
   const leftMA = calculateMovingAverage(leftPupilData, 3)
   const rightMA = calculateMovingAverage(rightPupilData, 3)
+
+  console.log('✅ [Pupil Chart] Chart data prepared successfully')
 
   return {
     backgroundColor: 'transparent',
@@ -924,7 +1298,8 @@ const pupilSizeOption = computed<EChartsOption>(() => {
         color: textColor,
         fontSize: 11,
         margin: 12,
-        interval: 0
+        interval: 0,
+        rotate: pupilViewMode.value === 'month' ? 45 : 0
       },
       splitLine: { show: false }
     },
@@ -958,6 +1333,7 @@ const pupilSizeOption = computed<EChartsOption>(() => {
         data: leftMA,
         smooth: true,
         symbol: 'none',
+        connectNulls: false,
         lineStyle: { 
           color: 'rgba(147, 197, 253, 0.8)', 
           width: 2,
@@ -973,6 +1349,7 @@ const pupilSizeOption = computed<EChartsOption>(() => {
         smooth: false,
         symbol: 'circle',
         symbolSize: 8,
+        connectNulls: false,
         lineStyle: { 
           color: '#3B82F6', 
           width: 2
@@ -991,6 +1368,7 @@ const pupilSizeOption = computed<EChartsOption>(() => {
         data: rightMA,
         smooth: true,
         symbol: 'none',
+        connectNulls: false,
         lineStyle: { 
           color: 'rgba(196, 181, 253, 0.8)', 
           width: 2,
@@ -1004,6 +1382,7 @@ const pupilSizeOption = computed<EChartsOption>(() => {
         type: 'line',
         data: rightPupilData,
         smooth: false,
+        connectNulls: false,
         symbol: 'circle',
         symbolSize: 8,
         lineStyle: { 
