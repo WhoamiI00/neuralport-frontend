@@ -112,7 +112,7 @@
             </div>
             <div class="profile-info">
               <h1 class="user-name">{{ userData.name }}</h1>
-              <p class="user-id">PIN: {{ userData.id.replace(/\D/g, '').slice(-4).padStart(4, '0') }}</p>
+              <p class="user-id">PIN: {{ userData.pin }}</p>
               <div class="profile-tags">
                 <el-tag size="small" v-if="userData.role">{{ userData.role }}</el-tag>
                 <el-tag size="small" type="info">{{ userData.sessionCount || 0 }} Sessions</el-tag>
@@ -979,6 +979,7 @@ const userData = computed(() => {
   
   return {
     id: member.value.id,
+    pin: member.value.pin,
     name: member.value.name,
     avatar: member.value.avatarUrl,
     role: member.value.role || 'Player',
