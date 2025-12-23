@@ -60,7 +60,7 @@
 
                             <div class="input-group">
                                 <input 
-                                    type="password" 
+                                    :type="showPin ? 'text' : 'password'"
                                     v-model="loginForm.pin"
                                     placeholder=" "
                                     required
@@ -68,11 +68,19 @@
                                 />
                                 <label>{{ t('auth.pin') }}</label>
                                 <span class="input-highlight"></span>
+                                <button 
+                                    type="button"
+                                    class="toggle-password-btn"
+                                    @click="showPin = !showPin"
+                                    tabindex="-1"
+                                >
+                                    <i class="mdi" :class="showPin ? 'mdi-eye-off' : 'mdi-eye'"></i>
+                                </button>
                             </div>
 
                             <div v-if="showAdminSetup" class="input-group">
                                 <input 
-                                    type="password" 
+                                    :type="showAdminPassword ? 'text' : 'password'"
                                     v-model="adminPassword"
                                     placeholder=" "
                                     required
@@ -80,6 +88,14 @@
                                 />
                                 <label>{{ t('auth.adminPassword') }}</label>
                                 <span class="input-highlight"></span>
+                                <button 
+                                    type="button"
+                                    class="toggle-password-btn"
+                                    @click="showAdminPassword = !showAdminPassword"
+                                    tabindex="-1"
+                                >
+                                    <i class="mdi" :class="showAdminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
+                                </button>
                             </div>
 
 
@@ -137,6 +153,10 @@ const loginForm = reactive({
 
 const showAdminSetup = ref(false)
 const adminPassword = ref('')
+
+// Password visibility toggles
+const showPin = ref(false)
+const showAdminPassword = ref(false)
 
 // Handle login submit
 async function handleLogin() {
@@ -402,6 +422,14 @@ $dark-peach: #fb7185;
 
             .input-highlight {
                 background: linear-gradient(90deg, $dark-teal, $dark-peach);
+            }
+
+            .toggle-password-btn {
+                color: $dark-text-muted;
+
+                &:hover {
+                    color: $dark-teal;
+                }
             }
         }
 
@@ -678,7 +706,7 @@ $dark-peach: #fb7185;
 
     input {
         width: 100%;
-        padding: 14px 0 10px;
+        padding: 14px 40px 10px 0;
         font-size: 1rem;
         color: $dark;
         background: transparent;
@@ -726,6 +754,35 @@ $dark-peach: #fb7185;
         height: 2px;
         background: linear-gradient(90deg, $teal, $peach);
         transition: width 0.4s $transition-smooth;
+    }
+
+    .toggle-password-btn {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: $gray;
+        cursor: pointer;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.3s ease;
+        outline: none;
+
+        i {
+            font-size: 1.2rem;
+        }
+
+        &:hover {
+            color: $teal;
+        }
+
+        &:active {
+            transform: translateY(-50%) scale(0.95);
+        }
     }
 }
 
