@@ -107,6 +107,7 @@
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -117,33 +118,8 @@ const isPageLoaded = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-// Dark mode state
-const isDarkMode = ref(false)
-
-// Initialize dark mode from localStorage
-function initDarkMode() {
-    const savedMode = localStorage.getItem('neuralport-dark-mode')
-    if (savedMode !== null) {
-        isDarkMode.value = savedMode === 'true'
-    } else {
-        isDarkMode.value = false
-    }
-}
-
-// Toggle dark mode
-function toggleDarkMode() {
-    isDarkMode.value = !isDarkMode.value
-    localStorage.setItem('neuralport-dark-mode', String(isDarkMode.value))
-}
-
-// Watch for system preference changes
-function watchSystemPreference() {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (localStorage.getItem('neuralport-dark-mode') === null) {
-            isDarkMode.value = e.matches
-        }
-    })
-}
+// Theme management
+const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
 
 // Login form data
 const loginForm = reactive({
@@ -187,9 +163,6 @@ async function handleLogin() {
 
 // Page entry animation
 onMounted(() => {
-    initDarkMode()
-    watchSystemPreference()
-    
     // Check if redirected due to token expiration
     if (route.query.expired === 'true') {
         error.value = 'Your session has expired. Please login again.'
