@@ -36,7 +36,7 @@
         <!-- Loading State -->
         <div v-if="loading" class="loading-state">
           <CustomLoader />
-          <span class="loading-text">Loading dashboard data...</span>
+          <span class="loading-text">{{ t('dashboard.loading') }}</span>
         </div>
 
         <template v-else>
@@ -62,7 +62,7 @@
                 </div>
                 <div class="stat-content">
                   <span class="stat-value">{{ globalStats.totalUsers }}</span>
-                  <span class="stat-label">Total Users</span>
+                  <span class="stat-label">{{ t('dashboard.totalUsers') }}</span>
                 </div>
               </div>
               <div class="stat-card cyan">
@@ -71,7 +71,7 @@
                 </div>
                 <div class="stat-content">
                   <span class="stat-value">{{ globalStats.totalSessions }}</span>
-                  <span class="stat-label">Total Sessions</span>
+                  <span class="stat-label">{{ t('dashboard.totalSessions') }}</span>
                 </div>
               </div>
               <div class="stat-card green">
@@ -80,7 +80,7 @@
                 </div>
                 <div class="stat-content">
                   <span class="stat-value">{{ globalStats.avgResponse }}%</span>
-                  <span class="stat-label">Avg Response</span>
+                  <span class="stat-label">{{ t('dashboard.avgResponse') }}</span>
                 </div>
               </div>
               <div class="stat-card orange">
@@ -89,7 +89,7 @@
                 </div>
                 <div class="stat-content">
                   <span class="stat-value">{{ globalStats.accuracyRate }}</span>
-                  <span class="stat-label">Accuracy Rate</span>
+                  <span class="stat-label">{{ t('dashboard.accuracyRate') }}</span>
                 </div>
               </div>
             </div>
@@ -101,8 +101,8 @@
             <div class="chart-card full-width statistics-card">
               <div class="chart-header statistics-header">
                 <div class="chart-title-group">
-                  <h3 class="statistics-title">Statistics</h3>
-                  <span class="statistics-label">BRAIN FATIGUE{{ selectedMember ? ` - ${selectedMember.name}` : '' }}</span>
+                  <h3 class="statistics-title">{{ t('dashboard.statistics') }}</h3>
+                  <span class="statistics-label">{{ t('dashboard.brainFatigue') }}{{ selectedMember ? ` - ${selectedMember.name}` : '' }}</span>
                 </div>
                 
                 <!-- Date Range Selector -->
@@ -125,7 +125,7 @@
                     :class="{ active: mode === period.value }"
                     @click="mode = period.value"
                   >
-                    {{ period.label }}
+                    {{ t(period.labelKey) }}
                   </button>
                 </div>
               </div>
@@ -154,6 +154,7 @@ import { defineComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useTheme } from '../composables/useTheme'
+import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
 import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
 import * as echarts from "echarts"
@@ -184,10 +185,12 @@ export default defineComponent({
     },
     setup() {
         const { isDark } = useTheme()
+        const { t } = useLanguage()
         const router = useRouter()
         
         return {
             isDark,
+            t,
             router
         }
     },
@@ -198,9 +201,9 @@ export default defineComponent({
             current: new Date(),
             
             periods: [
-                { label: 'Day', value: 'Day' },
-                { label: 'Week', value: 'Week' },
-                { label: 'Month', value: 'Month' }
+                { label: 'Day', value: 'Day', labelKey: 'dashboard.day' },
+                { label: 'Week', value: 'Week', labelKey: 'dashboard.week' },
+                { label: 'Month', value: 'Month', labelKey: 'dashboard.month' }
             ],
             
             chart1: null,
@@ -232,14 +235,14 @@ export default defineComponent({
         },
         
         pageTitle() {
-            return this.isAdmin ? 'Admin Dashboard' : 'Dashboard'
+            return this.isAdmin ? this.t('dashboard.adminTitle') : this.t('dashboard.title')
         },
         
         pageSubtitle() {
             if (this.isAdmin) {
-                return 'Overview of all users and performance metrics'
+                return this.t('dashboard.overviewAdmin')
             }
-            return 'Your performance metrics and statistics'
+            return this.t('dashboard.overviewUser')
         },
         
         navLabel() {

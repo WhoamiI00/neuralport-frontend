@@ -13,7 +13,7 @@
             <div class="modal-header">
               <h2 class="modal-title">
                 <i class="mdi mdi-account-plus"></i>
-                Create New User
+                {{ t('user.createNew') }}
               </h2>
               <button class="close-btn" @click="handleClose" title="Close">
                 <i class="mdi mdi-close"></i>
@@ -26,7 +26,7 @@
               <div class="avatar-section">
                 <label class="form-label">
                   <i class="mdi mdi-image-outline"></i>
-                  Profile Image (Optional)
+                  {{ t('user.profileImage') }}
                 </label>
                 
                 <div class="upload-section">
@@ -39,8 +39,8 @@
                   >
                     <i v-if="isUploading" class="mdi mdi-loading mdi-spin"></i>
                     <i v-else class="mdi mdi-upload"></i>
-                    <span v-if="!isUploading">Upload Image</span>
-                    <span v-else>Uploading...</span>
+                    <span v-if="!isUploading">{{ t('user.uploadImage') }}</span>
+                    <span v-else>{{ t('user.uploading') }}</span>
                   </button>
                   <input 
                     ref="fileInputRef"
@@ -58,7 +58,7 @@
                     type="text"
                     class="form-input"
                     :class="{ 'error': errors.avatarUrl }"
-                    placeholder="Enter image URL directly (optional)"
+                    :placeholder="t('user.enterImageUrl')"
                     @input="handleAvatarUrlChange"
                   />
                   <span v-if="errors.avatarUrl" class="error-message">{{ errors.avatarUrl }}</span>
@@ -78,7 +78,7 @@
                 <div class="form-group">
                   <label class="form-label">
                     <i class="mdi mdi-dialpad"></i>
-                    4-Digit PIN
+                    {{ t('user.fourDigitPin') }}
                   </label>
                   <input
                     v-model="formData.pin"
@@ -88,7 +88,7 @@
                     maxlength="4"
                     class="form-input"
                     :class="{ 'error': errors.pin }"
-                    placeholder="Enter 4-digit PIN"
+                    :placeholder="t('user.enterPin')"
                     @input="validatePin"
                   />
                   <span v-if="errors.pin" class="error-message">{{ errors.pin }}</span>
@@ -98,14 +98,14 @@
                 <div class="form-group full-width">
                   <label class="form-label">
                     <i class="mdi mdi-account-outline"></i>
-                    Username
+                    {{ t('user.username') }}
                   </label>
                   <input
                     v-model="formData.username"
                     type="text"
                     class="form-input"
                     :class="{ 'error': errors.username }"
-                    placeholder="Enter username"
+                    :placeholder="t('user.enterUsername')"
                     @blur="validateUsername"
                   />
                   <span v-if="errors.username" class="error-message">{{ errors.username }}</span>
@@ -115,7 +115,7 @@
               <!-- Footer Actions -->
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="handleClose">
-                  Cancel
+                  {{ t('action.cancel') }}
                 </button>
                 <button 
                   type="submit" 
@@ -124,7 +124,7 @@
                 >
                   <i v-if="isSubmitting" class="mdi mdi-loading mdi-spin"></i>
                   <i v-else class="mdi mdi-account-plus"></i>
-                  {{ isSubmitting ? 'Creating...' : 'Create User' }}
+                  {{ isSubmitting ? t('user.creating') : t('user.createUser') }}
                 </button>
               </div>
             </form>
@@ -138,6 +138,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onBeforeUnmount } from 'vue'
 import { useTheme } from '../../composables/useTheme'
+import { useLanguage } from '../../composables/useLanguage'
 import { ElMessage } from 'element-plus'
 
 interface Props {
@@ -160,6 +161,7 @@ const emit = defineEmits<{
 }>()
 
 const { isDark } = useTheme()
+const { t } = useLanguage()
 
 // Cloudinary config
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME

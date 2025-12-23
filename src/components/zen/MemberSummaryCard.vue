@@ -35,7 +35,7 @@
         <div class="metric-col latest">
           <div class="metric-header">
             <i class="mdi mdi-calendar-clock metric-icon"></i>
-            <span class="col-header">Latest</span>
+            <span class="col-header">{{ t('dashboard.latest') }}</span>
           </div>
           <div class="col-body">
             <span class="sub-text">{{ latestDateFormatted }}</span>
@@ -50,7 +50,7 @@
         <div class="metric-col average">
           <div class="metric-header">
             <i class="mdi mdi-chart-bar metric-icon"></i>
-            <span class="col-header">Average</span>
+            <span class="col-header">{{ t('dashboard.average') }}</span>
           </div>
           <div class="col-body">
             <span class="main-value highlight" :class="{ 'na-value': isNewUser }">{{ formattedAverageScore }}</span>
@@ -64,7 +64,7 @@
         <div class="metric-col std-deviation">
           <div class="metric-header">
             <i class="mdi mdi-chart-bell-curve-cumulative metric-icon"></i>
-            <span class="col-header">Standard Deviation</span>
+            <span class="col-header">{{ t('dashboard.standardDeviation') }}</span>
           </div>
           <div class="col-body">
             <div class="std-dev-display" :class="{ 'na-display': isNewUser }">
@@ -94,6 +94,7 @@ import { ref, computed } from 'vue'
 import type { Member } from '../../data/members'
 import type { MemberSummary } from '../../data/memberDashboards'
 import { useTheme } from '../../composables/useTheme'
+import { useLanguage } from '../../composables/useLanguage'
 import EditMemberModal from './EditMemberModal.vue'
 
 interface Props {
@@ -110,6 +111,7 @@ const emit = defineEmits<{
 }>()
 
 const { isDark } = useTheme()
+const { t } = useLanguage()
 
 // Edit modal state
 const showEditModal = ref(false)
@@ -152,7 +154,8 @@ const formattedStdDeviation = computed(() => {
 
 const formattedSessions = computed(() => {
   const count = isNewUser.value ? 0 : (props.summary.totalSessions || 0)
-  return `${count} ${count === 1 ? 'Session' : 'Sessions'}`
+  const sessionText = count === 1 ? 'Session' : 'Sessions'
+  return `${count} ${sessionText}`
 })
 
 // Latest date formatted from actual latest score timestamp

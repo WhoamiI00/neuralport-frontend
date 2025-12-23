@@ -17,6 +17,9 @@
             </Transition>
         </button>
 
+        <!-- Language Toggle -->
+        <LanguageToggle position="fixed" class="login-language-toggle" />
+
         <!-- Floating Background Shapes -->
         <ul class="circles">
             <li v-for="n in floatingBlockCount" :key="n"></li>
@@ -40,8 +43,8 @@
                 <div class="form-content">
                     <Transition name="form-slide" mode="out-in">
                         <form class="auth-form" @submit.prevent="handleLogin">
-                            <h1 class="form-title">VR Access</h1>
-                            <p class="form-subtitle">{{ showAdminSetup ? 'Set Admin Password' : 'Authenticate with Device ID and PIN' }}</p>
+                            <h1 class="form-title">{{ t('auth.title') }}</h1>
+                            <p class="form-subtitle">{{ showAdminSetup ? t('auth.adminSetupSubtitle') : t('auth.subtitle') }}</p>
 
                             <div class="input-group">
                                 <input 
@@ -51,7 +54,7 @@
                                     required
                                     autocomplete="off"
                                 />
-                                <label>Device ID</label>
+                                <label>{{ t('auth.deviceId') }}</label>
                                 <span class="input-highlight"></span>
                             </div>
 
@@ -63,7 +66,7 @@
                                     required
                                     autocomplete="off"
                                 />
-                                <label>PIN</label>
+                                <label>{{ t('auth.pin') }}</label>
                                 <span class="input-highlight"></span>
                             </div>
 
@@ -75,7 +78,7 @@
                                     required
                                     autocomplete="off"
                                 />
-                                <label>Admin Password</label>
+                                <label>{{ t('auth.adminPassword') }}</label>
                                 <span class="input-highlight"></span>
                             </div>
 
@@ -86,7 +89,7 @@
                                 :class="{ 'is-loading': loading }"
                                 :disabled="loading"
                             >
-                                <span class="btn-text">{{ loading ? '' : 'Sign In' }}</span>
+                                <span class="btn-text">{{ loading ? '' : t('auth.signIn') }}</span>
                                 <span v-if="loading" class="btn-loader"></span>
                             </button>
 
@@ -108,6 +111,8 @@ import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
+import { useLanguage } from '../composables/useLanguage'
+import LanguageToggle from '../components/zen/LanguageToggle.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -120,6 +125,9 @@ const error = ref('')
 
 // Theme management
 const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
+
+// Language management
+const { t } = useLanguage()
 
 // Login form data
 const loginForm = reactive({
@@ -143,7 +151,7 @@ async function handleLogin() {
         
         if (result.needsAdminSetup) {
             showAdminSetup.value = true
-            error.value = 'First user must set an admin password'
+            error.value = t('auth.firstUserSetAdmin')
             loading.value = false
             return
         }
@@ -165,7 +173,7 @@ async function handleLogin() {
 onMounted(() => {
     // Check if redirected due to token expiration
     if (route.query.expired === 'true') {
-        error.value = 'Your session has expired. Please login again.'
+        error.value = t('auth.sessionExpired')
     }
     
     setTimeout(() => {
@@ -261,6 +269,12 @@ $dark-peach: #fb7185;
         color: $dark;
         scale:150%;
     }
+}
+
+// Language Toggle Button (positioned below dark mode toggle)
+.login-language-toggle {
+    top: 94px !important;
+    right: 24px !important;
 }
 
 // Icon Flip Transition

@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { useLanguage } from '../../composables/useLanguage'
 
 // Props
 const props = withDefaults(defineProps<{
@@ -33,15 +33,13 @@ const emit = defineEmits<{
     (e: 'toggle', language: string): void
 }>()
 
-// Language state (you can integrate with i18n later)
-const currentLanguage = ref<'en' | 'ja'>('en')
+// Language management
+const { currentLanguage, toggleLanguage: toggle } = useLanguage()
 
 // Toggle language
 function toggleLanguage() {
-    currentLanguage.value = currentLanguage.value === 'en' ? 'ja' : 'en'
+    toggle()
     emit('toggle', currentLanguage.value)
-    // TODO: Integrate with i18n when ready
-    console.log('Language switched to:', currentLanguage.value)
 }
 
 // Expose for parent components

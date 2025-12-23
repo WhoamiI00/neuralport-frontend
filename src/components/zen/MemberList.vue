@@ -2,7 +2,7 @@
   <div class="member-list">
     <!-- Header -->
     <div class="list-header">
-      <span class="list-title">Members</span>
+      <span class="list-title">{{ t('dashboard.members') }}</span>
       <span class="member-count">{{ members.length }}</span>
     </div>
 
@@ -13,7 +13,7 @@
       @click="openCreateUserModal"
     >
       <i class="mdi mdi-plus"></i>
-      <span>Add User</span>
+      <span>{{ t('dashboard.addUser') }}</span>
     </button>
 
     <!-- Scrollable Members -->
@@ -39,9 +39,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useLanguage } from '../../composables/useLanguage'
 import type { Member } from '../../data/members'
 import MemberListItem from './MemberListItem.vue'
 import CreateUserModal from './CreateUserModal.vue'
+
+const { t } = useLanguage()
 
 interface Props {
   members: Member[]
