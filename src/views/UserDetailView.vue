@@ -107,7 +107,7 @@
           <!-- User Info Card -->
           <div class="profile-card">
             <div class="profile-avatar">
-              <img v-if="userData.avatar" src="https://virtualcattolica.collectivibe.com/cms/img/dummy_avatar.png" :alt="userData.name" />
+              <img v-if="userData.avatar" :src="userData.avatar" :alt="userData.name" />
               <span v-else class="avatar-initials">{{ getInitials(userData.name) }}</span>
             </div>
             <div class="profile-info">
