@@ -224,6 +224,7 @@ import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
 import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, listTenantScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
+import { fetchWithCache } from '../lib/cache'
 import * as echarts from "echarts"
 import _ from "lodash"
 import {
@@ -463,13 +464,11 @@ export default defineComponent({
         },
         
         navigateToUserDetails(memberId) {
-            console.log('Navigate to user details:', memberId)
             this.$router.push(`/user/${memberId}`)
         },
         
         async handleCreateUser(userData) {
             // userData contains: { pin, username, avatar, avatarUrl }
-            console.log('Create user:', userData)
             
             const auth = useAuthStore()
             if (!auth || !auth.token) {
@@ -496,14 +495,12 @@ export default defineComponent({
                 await this.fetchGroup()
                 
             } catch (e) {
-                console.error('Create user error:', e)
                 ElMessage.error(`Network error: ${e?.message || e}`)
             }
         },
         
         async handleUpdateMember(memberData) {
             // memberData contains: { id, username, avatar, avatarUrl }
-            console.log('Update member:', memberData)
             
             const auth = useAuthStore()
             if (!auth || !auth.token) {
@@ -521,7 +518,6 @@ export default defineComponent({
                         userId: parseInt(memberData.id),
                         name: memberData.username
                     })
-                    console.log('Name updated')
                 }
                 
                 // Update avatar if changed
@@ -530,7 +526,6 @@ export default defineComponent({
                         userId: parseInt(memberData.id),
                         avatarUrl: memberData.avatarUrl
                     })
-                    console.log('Avatar updated')
                 }
                 
                 // Show success message
@@ -544,7 +539,6 @@ export default defineComponent({
                 }
                 
             } catch (e) {
-                console.error('Update member error:', e)
                 ElMessage.error(`Network error: ${e?.message || e}`)
             }
         },
@@ -593,7 +587,6 @@ export default defineComponent({
                 this.showEditVrModal = false
                 
             } catch (e) {
-                console.error('Update VR name error:', e)
                 ElMessage.error(e?.message || 'Failed to update VR name')
             } finally {
                 this.isUpdatingVrName = false
@@ -621,31 +614,41 @@ export default defineComponent({
                 end = endOfMonth(this.current)
             }
 
-            console.log('📊 Fetching chart data:', {
-                mode: this.mode,
-                current: this.current,
-                start: start,
-                end: end,
-                userId: user_id,
-                isAdmin: this.isAdmin
-            })
-
             try {
                 // If a specific member is selected (admin or regular user), fetch only their scores
                 // If admin with no member selected, fetch all scores for the VR device (tenant)
+                const authStore = useAuthStore()
+                const token = authStore.token || ''
                 let scores
+                
                 if (this.selectedMemberId) {
-                    // Specific user is selected - fetch only their scores
-                    scores = await listScores(tenant_id, parseInt(user_id))
-                    console.log('📥 Received USER scores from API:', scores.length, 'scores for user', user_id)
+                    // Specific user is selected - fetch only their scores with caching
+                    const cacheKey = `user_scores_${user_id}`
+                    scores = await fetchWithCache(
+                        cacheKey,
+                        parseInt(user_id),
+                        token,
+                        () => listScores(tenant_id, parseInt(user_id))
+                    )
                 } else if (this.isAdmin) {
-                    // Admin with no user selected - fetch all tenant scores
-                    scores = await listTenantScores(tenant_id)
-                    console.log('📥 Received TENANT scores from API:', scores.length, 'total scores (all users)')
+                    // Admin with no user selected - fetch all tenant scores with caching
+                    const cacheKey = `tenant_scores_${tenant_id}`
+                    scores = await fetchWithCache(
+                        cacheKey,
+                        tenant_id,
+                        token,
+                        () => listTenantScores(tenant_id),
+                        true
+                    )
                 } else {
-                    // Regular user - fetch their own scores
-                    scores = await listScores(tenant_id, parseInt(user_id))
-                    console.log('📥 Received USER scores from API:', scores.length, 'total scores')
+                    // Regular user - fetch their own scores with caching
+                    const cacheKey = `user_scores_${user_id}`
+                    scores = await fetchWithCache(
+                        cacheKey,
+                        parseInt(user_id),
+                        token,
+                        () => listScores(tenant_id, parseInt(user_id))
+                    )
                 }
 
                 const items = Array.isArray(scores) ? scores : []
@@ -657,13 +660,6 @@ export default defineComponent({
                     const t = d.getTime()
                     return t >= start.getTime() && t <= end.getTime()
                 })
-                
-                console.log('✅ Filtered scores for date range:', filteredItems.length, 'scores')
-                console.log('📅 Date range:', format(start, 'yyyy-MM-dd HH:mm'), 'to', format(end, 'yyyy-MM-dd HH:mm'))
-                
-                if (filteredItems.length > 0) {
-                    console.log('🎯 Sample filtered data:', filteredItems.slice(0, 3))
-                }
                 
                 filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                 
@@ -735,7 +731,7 @@ export default defineComponent({
                 }
 
             } catch (err) {
-                console.error("fetchChartData error:", err)
+                // Error fetching chart data
             }
 
             return { lineData, barData, start, end }
@@ -889,6 +885,12 @@ export default defineComponent({
         async fetchLatest() {
             const user_id = this.getUserId()
             const tenant_id = this.getTenantId()
+            
+            // Skip if no user_id (e.g., admin with no member selected)
+            if (!user_id || user_id === '') {
+                return
+            }
+            
             try {
                 const data = await getLatestScore(tenant_id, parseInt(user_id))
                 this.latest_score = {
@@ -896,16 +898,22 @@ export default defineComponent({
                     createdAt: data.score?.createdAt ?? ""
                 }
             } catch (err) {
-                console.error('fetchLatest error', err)
+                // Error fetching latest score
             }
         },
         
         async fetchUser() {
             const user_id = this.getUserId()
+            
+            // Skip if no user_id (e.g., admin with no member selected)
+            if (!user_id || user_id === '') {
+                return
+            }
+            
             try {
                 this.user_info = await getUser(parseInt(user_id))
             } catch (err) {
-                console.error('fetchUser error', err)
+                // Error fetching user
             }
         },
         
@@ -956,7 +964,7 @@ export default defineComponent({
                     }
                 }
             } catch (err) {
-                console.error('fetchGroup error', err)
+                // Error fetching group
             }
         },
         
@@ -973,6 +981,17 @@ export default defineComponent({
         
         async loadCurrentUserData() {
             this.loading = true
+            
+            // For admin with no member selected, only fetch group data and chart
+            if (this.isAdmin && !this.selectedMemberId) {
+                await this.fetchGroup()
+                this.loading = false
+                await this.$nextTick()
+                this.initChart1()
+                return
+            }
+            
+            // For regular users or admin with member selected, fetch all user data
             await Promise.all([
                 this.fetchUser(),
                 this.fetchLatest(),
