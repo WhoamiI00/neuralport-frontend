@@ -86,7 +86,10 @@
           <SidebarOptions
             v-else
             key="options"
+            :is-admin="isAdmin"
+            :vr-name="vrName"
             @option-click="handleOptionClick"
+            @edit-vr-name="handleEditVrName"
             @logout="handleLogout"
           />
         </transition>
@@ -131,11 +134,13 @@ interface Props {
   members: Member[]
   selectedMemberId?: string | null
   isAdmin?: boolean
+  vrName?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedMemberId: null,
-  isAdmin: false
+  isAdmin: false,
+  vrName: ''
 })
 
 const emit = defineEmits<{
@@ -143,6 +148,7 @@ const emit = defineEmits<{
   (e: 'deselect-member'): void
   (e: 'view-details', memberId: string): void
   (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'edit-vr-name'): void
 }>()
 
 const router = useRouter()
@@ -254,6 +260,13 @@ const handleOptionClick = (option: { id: string; label: string }) => {
       break
   }
   
+  if (isMobile.value) {
+    closeMobile()
+  }
+}
+
+const handleEditVrName = () => {
+  emit('edit-vr-name')
   if (isMobile.value) {
     closeMobile()
   }

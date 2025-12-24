@@ -5,10 +5,12 @@
       :members="members" 
       :selected-member-id="selectedMemberId"
       :is-admin="isAdmin"
+      :vr-name="vrName"
       @select-member="handleMemberSelect"
       @deselect-member="handleMemberDeselect"
       @view-details="navigateToUserDetails"
       @create-user="handleCreateUser"
+      @edit-vr-name="showEditVrModal = true"
     />
 
     <!-- Main Content -->
@@ -102,7 +104,15 @@
               <div class="chart-header statistics-header">
                 <div class="chart-title-group">
                   <h3 class="statistics-title">{{ t('dashboard.statistics') }}</h3>
-                  <span class="statistics-label">{{ t('dashboard.brainFatigue') }}{{ selectedMember ? ` - ${selectedMember.name}` : '' }}</span>
+                  <span class="statistics-label">
+                    {{ t('dashboard.brainFatigue') }}
+                    <template v-if="isAdmin">
+                      - {{ vrName || t('dashboard.allVRData') }}
+                    </template>
+                    <template v-else-if="selectedMember">
+                      - {{ selectedMember.name }}
+                    </template>
+                  </span>
                 </div>
                 
                 <!-- Date Range Selector -->
@@ -146,6 +156,63 @@
         <span class="version">v1.0.0</span>
       </footer>
     </main>
+
+    <!-- Edit VR Name Modal -->
+    <Teleport to="body">
+      <Transition name="modal-fade">
+        <div 
+          v-if="showEditVrModal" 
+          class="modal-overlay" 
+          :class="{ 'dark-mode': isDark }"
+          @click.self="showEditVrModal = false"
+        >
+          <div class="modal-container vr-modal">
+            <div class="modal-card">
+              <div class="modal-header">
+                <h2 class="modal-title">
+                  <i class="mdi mdi-home-edit"></i>
+                  Edit VR Name
+                </h2>
+                <button class="close-btn" @click="showEditVrModal = false">
+                  <i class="mdi mdi-close"></i>
+                </button>
+              </div>
+              <form class="modal-body" @submit.prevent="handleUpdateVrName">
+                <div class="form-group">
+                  <label class="form-label">
+                    <i class="mdi mdi-tag-outline"></i>
+                    VR Name
+                  </label>
+                  <input
+                    v-model="editVrNameForm"
+                    type="text"
+                    class="form-input"
+                    placeholder="Enter VR name (e.g., VR001, Training Room A)"
+                    required
+                    maxlength="50"
+                  />
+                  <span class="form-hint">This name can be used for authentication along with your device ID</span>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" @click="showEditVrModal = false">
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary"
+                    :disabled="isUpdatingVrName || !editVrNameForm.trim()"
+                  >
+                    <i v-if="isUpdatingVrName" class="mdi mdi-loading mdi-spin"></i>
+                    <i v-else class="mdi mdi-check"></i>
+                    {{ isUpdatingVrName ? 'Updating...' : 'Update Name' }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -156,7 +223,7 @@ import { ElMessage } from 'element-plus'
 import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
-import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
+import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, listTenantScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
 import * as echarts from "echarts"
 import _ from "lodash"
 import {
@@ -221,7 +288,13 @@ export default defineComponent({
                 totalSessions: 0,
                 avgResponse: 0,
                 accuracyRate: '0%'
-            }
+            },
+            
+            // VR Name editing
+            showEditVrModal: false,
+            editVrNameForm: '',
+            isUpdatingVrName: false,
+            vrName: ''
         }
     },
     computed: {
@@ -476,6 +549,57 @@ export default defineComponent({
             }
         },
         
+        async handleUpdateVrName() {
+            const auth = useAuthStore()
+            if (!auth || !auth.token) {
+                ElMessage.error('Authentication token not found. Please login as admin.')
+                return
+            }
+            
+            this.isUpdatingVrName = true
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/admin/vr-name`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${auth.token}`
+                    },
+                    body: JSON.stringify({
+                        vrName: this.editVrNameForm.trim()
+                    })
+                })
+                
+                if (!response.ok) {
+                    const error = await response.json()
+                    throw new Error(error.error || 'Failed to update VR name')
+                }
+                
+                const data = await response.json()
+                
+                // Update local state
+                this.vrName = data.vrName
+                
+                // Update auth store and persist to localStorage
+                if (auth.user) {
+                    auth.user.vr_name = data.vrName
+                    localStorage.setItem('auth_user', JSON.stringify(auth.user))
+                }
+                
+                // Show success message
+                ElMessage.success(`VR name updated to "${data.vrName}"`)
+                
+                // Close modal
+                this.showEditVrModal = false
+                
+            } catch (e) {
+                console.error('Update VR name error:', e)
+                ElMessage.error(e?.message || 'Failed to update VR name')
+            } finally {
+                this.isUpdatingVrName = false
+            }
+        },
+        
         async fetchChartData() {
             let lineData = []
             let barData = []
@@ -502,12 +626,21 @@ export default defineComponent({
                 current: this.current,
                 start: start,
                 end: end,
-                userId: user_id
+                userId: user_id,
+                isAdmin: this.isAdmin
             })
 
             try {
-                const scores = await listScores(tenant_id, parseInt(user_id))
-                console.log('📥 Received scores from API:', scores.length, 'total scores')
+                // If admin, fetch all scores for the VR device (tenant)
+                // If regular user, fetch only their scores
+                let scores
+                if (this.isAdmin) {
+                    scores = await listTenantScores(tenant_id)
+                    console.log('📥 Received TENANT scores from API:', scores.length, 'total scores (all users)')
+                } else {
+                    scores = await listScores(tenant_id, parseInt(user_id))
+                    console.log('📥 Received USER scores from API:', scores.length, 'total scores')
+                }
 
                 const items = Array.isArray(scores) ? scores : []
                 
@@ -869,11 +1002,20 @@ export default defineComponent({
     async mounted() {
         const auth = useAuthStore()
         
+        // Initialize VR name from auth store
+        if (auth.user?.vr_name) {
+            this.vrName = auth.user.vr_name
+            this.editVrNameForm = auth.user.vr_name
+        }
+        
         // Admins don't have user data to load, only fetch the group
         if (auth.user?.is_admin) {
             this.loading = true
             await this.fetchGroup()
             this.loading = false
+            // Initialize chart for admin with all VR data
+            await this.$nextTick()
+            await this.initChart1()
         } else {
             await this.loadCurrentUserData()
         }
@@ -962,6 +1104,7 @@ export default defineComponent({
       display: none;
     }
   }
+
 }
 
 .header-right {
@@ -1427,5 +1570,188 @@ export default defineComponent({
     border-radius: $radius-sm;
     transition: background 0.3s ease;
   }
+}
+
+// VR Name Modal Styles
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+
+  &.dark-mode {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+.modal-container.vr-modal {
+  width: 100%;
+  max-width: 500px;
+}
+
+.modal-card {
+  background: var(--zen-surface);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--zen-border);
+
+  .modal-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--zen-text-heading);
+    margin: 0;
+
+    i {
+      font-size: 24px;
+      color: var(--zen-accent-teal);
+    }
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    color: var(--zen-text-muted);
+    transition: all 0.3s ease;
+
+    i {
+      font-size: 24px;
+    }
+
+    &:hover {
+      background: var(--zen-bg-secondary);
+      color: var(--zen-text-primary);
+    }
+  }
+}
+
+.modal-body {
+  padding: 24px;
+
+  .form-group {
+    margin-bottom: 20px;
+
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--zen-text-primary);
+      margin-bottom: 8px;
+
+      i {
+        font-size: 18px;
+        color: var(--zen-accent-teal);
+      }
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--zen-bg-secondary);
+      border: 1px solid var(--zen-border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--zen-text-primary);
+      transition: all 0.3s ease;
+
+      &:focus {
+        outline: none;
+        border-color: var(--zen-accent-teal);
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.1);
+      }
+
+      &::placeholder {
+        color: var(--zen-text-muted);
+      }
+    }
+
+    .form-hint {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--zen-text-muted);
+    }
+  }
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+
+    i {
+      font-size: 18px;
+    }
+
+    &.btn-secondary {
+      background: var(--zen-bg-secondary);
+      color: var(--zen-text-primary);
+
+      &:hover {
+        background: var(--zen-border);
+      }
+    }
+
+    &.btn-primary {
+      background: var(--zen-accent-teal);
+      color: white;
+
+      &:hover:not(:disabled) {
+        background: var(--zen-accent-teal-dark);
+        box-shadow: 0 4px 12px rgba(34, 211, 238, 0.3);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  }
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 </style>

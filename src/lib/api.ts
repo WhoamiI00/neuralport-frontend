@@ -114,6 +114,19 @@ export async function listScores(tenantId: number, userId: number): Promise<Scor
   return data.scores || []
 }
 
+export async function listTenantScores(tenantId: number): Promise<Score[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tenants/${tenantId}/scores`,
+    {
+      headers: getAuthHeaders(),
+      credentials: 'include'
+    }
+  )
+
+  const data = await handleApiResponse(response)
+  return data.scores || []
+}
+
 export async function getLatestScore(tenantId: number, userId: number): Promise<Score> {
   const response = await fetch(
     `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/latest`,
@@ -229,6 +242,7 @@ export const api = {
   getStorage,
   // Scores
   listScores,
+  listTenantScores,
   latestScore: getLatestScore,
   // Users
   getUser,

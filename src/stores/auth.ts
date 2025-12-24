@@ -7,6 +7,7 @@ interface User {
   id: string
   pin: string
   device_id: string
+  vr_name?: string
   tenant_id: string
   is_admin?: boolean
 }

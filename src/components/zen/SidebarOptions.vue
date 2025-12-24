@@ -20,6 +20,23 @@
       <!-- Divider for mobile -->
       <div v-if="isMobile" class="options-divider"></div>
 
+      <!-- VR Name Edit Option (Admin only) -->
+      <button
+        v-if="isAdmin"
+        class="option-item vr-name-option"
+        @click="handleEditVrName"
+      >
+        <i class="mdi mdi-home-variant"></i>
+        <transition name="fade">
+          <span class="option-label">
+            <span class="vr-label">VR Name</span>
+            <span class="vr-value">{{ vrName }}</span>
+          </span>
+        </transition>
+      </button>
+
+      <div v-if="isAdmin" class="options-divider"></div>
+
       <button
         v-for="option in options"
         :key="option.id"
@@ -48,14 +65,19 @@ interface OptionItem {
 }
 
 interface Props {
+  isAdmin?: boolean
+  vrName?: string
 }
 
 withDefaults(defineProps<Props>(), {
+  isAdmin: false,
+  vrName: ''
 })
 
 const emit = defineEmits<{
   (e: 'option-click', option: OptionItem): void
   (e: 'theme-toggle'): void
+  (e: 'edit-vr-name'): void
   (e: 'logout'): void
 }>()
 
@@ -70,6 +92,10 @@ const checkMobile = () => {
 const handleThemeToggle = () => {
   toggleTheme()
   emit('theme-toggle')
+}
+
+const handleEditVrName = () => {
+  emit('edit-vr-name')
 }
 
 onMounted(() => {
@@ -187,6 +213,30 @@ const handleOptionClick = (option: OptionItem) => {
 
 .option-label {
   white-space: nowrap;
+}
+
+.vr-name-option {
+  .option-label {
+    display: flex;
+    flex-direction: column;
+    gap: $space-1;
+    flex: 1;
+  }
+
+  .vr-label {
+    font-size: $text-body-xs;
+    color: var(--zen-text-muted);
+  }
+
+  .vr-value {
+    font-size: $text-body-sm;
+    font-weight: $font-weight-semibold;
+    color: var(--zen-text-primary);
+  }
+
+  &:hover .vr-value {
+    color: var(--zen-accent-teal);
+  }
 }
 
 .options-divider {
