@@ -20,11 +20,12 @@
       <!-- Divider for mobile -->
       <div v-if="isMobile" class="options-divider"></div>
 
-      <!-- VR Name Edit Option (Admin only) -->
+      <!-- VR Name Display (clickable/editable for admin only) -->
       <button
-        v-if="isAdmin"
+        v-if="vrName"
         class="option-item vr-name-option"
-        @click="handleEditVrName"
+        :class="{ 'non-clickable': !isAdmin }"
+        @click="isAdmin ? handleEditVrName() : null"
       >
         <i class="mdi mdi-home-variant"></i>
         <transition name="fade">
@@ -33,9 +34,10 @@
             <span class="vr-value">{{ vrName }}</span>
           </span>
         </transition>
+        <i v-if="isAdmin" class="mdi mdi-pencil edit-icon"></i>
       </button>
 
-      <div v-if="isAdmin" class="options-divider"></div>
+      <div v-if="vrName" class="options-divider"></div>
 
       <button
         v-for="option in options"
@@ -216,6 +218,8 @@ const handleOptionClick = (option: OptionItem) => {
 }
 
 .vr-name-option {
+  position: relative;
+  
   .option-label {
     display: flex;
     flex-direction: column;
@@ -234,8 +238,31 @@ const handleOptionClick = (option: OptionItem) => {
     color: var(--zen-text-primary);
   }
 
+  .edit-icon {
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    font-size: 18px;
+  }
+
   &:hover .vr-value {
     color: var(--zen-accent-teal);
+  }
+
+  &:hover .edit-icon {
+    opacity: 1;
+  }
+
+  &.non-clickable {
+    cursor: default;
+    
+    &:hover {
+      background: transparent;
+      
+      .vr-value {
+        color: var(--zen-text-primary);
+      }
+    }
   }
 }
 

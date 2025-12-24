@@ -81,8 +81,8 @@
                   <i class="mdi mdi-chart-arc"></i>
                 </div>
                 <div class="stat-content">
-                  <span class="stat-value">{{ globalStats.avgResponse }}%</span>
-                  <span class="stat-label">{{ t('dashboard.avgResponse') }}</span>
+                  <span class="stat-value">{{ globalStats.avgFatigueScore }}</span>
+                  <span class="stat-label">{{ t('dashboard.avgFatigueScore') }}</span>
                 </div>
               </div>
               <div class="stat-card orange">
@@ -90,8 +90,8 @@
                   <i class="mdi mdi-target"></i>
                 </div>
                 <div class="stat-content">
-                  <span class="stat-value">{{ globalStats.accuracyRate }}</span>
-                  <span class="stat-label">{{ t('dashboard.accuracyRate') }}</span>
+                  <span class="stat-value">{{ globalStats.standardDeviation }}</span>
+                  <span class="stat-label">{{ t('dashboard.standardDeviation') }}</span>
                 </div>
               </div>
             </div>
@@ -286,8 +286,8 @@ export default defineComponent({
             globalStats: {
                 totalUsers: 0,
                 totalSessions: 0,
-                avgResponse: 0,
-                accuracyRate: '0%'
+                avgFatigueScore: 'N/A',
+                standardDeviation: 'N/A'
             },
             
             // VR Name editing
@@ -507,7 +507,7 @@ export default defineComponent({
             
             const auth = useAuthStore()
             if (!auth || !auth.token) {
-                ElMessage.error('Authentication token not found. Please login as admin.')
+                ElMessage.error('Authentication token not found. Please login.')
                 return
             }
             
@@ -631,13 +631,19 @@ export default defineComponent({
             })
 
             try {
-                // If admin, fetch all scores for the VR device (tenant)
-                // If regular user, fetch only their scores
+                // If a specific member is selected (admin or regular user), fetch only their scores
+                // If admin with no member selected, fetch all scores for the VR device (tenant)
                 let scores
-                if (this.isAdmin) {
+                if (this.selectedMemberId) {
+                    // Specific user is selected - fetch only their scores
+                    scores = await listScores(tenant_id, parseInt(user_id))
+                    console.log('📥 Received USER scores from API:', scores.length, 'scores for user', user_id)
+                } else if (this.isAdmin) {
+                    // Admin with no user selected - fetch all tenant scores
                     scores = await listTenantScores(tenant_id)
                     console.log('📥 Received TENANT scores from API:', scores.length, 'total scores (all users)')
                 } else {
+                    // Regular user - fetch their own scores
                     scores = await listScores(tenant_id, parseInt(user_id))
                     console.log('📥 Received USER scores from API:', scores.length, 'total scores')
                 }
@@ -956,22 +962,12 @@ export default defineComponent({
         
         updateGlobalStats() {
             // Calculate stats based on whether admin or regular user
-            if (this.isAdmin) {
-                // Admin sees all users stats
-                this.globalStats = {
-                    totalUsers: this.members.length,
-                    totalSessions: 'N/A',
-                    avgResponse: 'N/A',
-                    accuracyRate: 'N/A'
-                }
-            } else {
-                // Regular user sees their own stats (calculated from chart data)
-                this.globalStats = {
-                    totalUsers: 1,  // Always 1 for regular users (themselves)
-                    totalSessions: this.totalDataPoints || 0,
-                    avgResponse: this.average > 0 ? this.average.toFixed(1) : '0.0',
-                    accuracyRate: this.standard_deviation > 0 ? this.standard_deviation.toFixed(1) : '0.0'
-                }
+            // For both admin and regular users, show actual calculated stats from chart data
+            this.globalStats = {
+                totalUsers: this.members.length,
+                totalSessions: this.totalDataPoints || 0,
+                avgFatigueScore: this.average > 0 ? this.average.toFixed(1) : '0.0',
+                standardDeviation: this.standard_deviation > 0 ? this.standard_deviation.toFixed(1) : '0.0'
             }
         },
         
