@@ -91,6 +91,44 @@ export async function getStorage(key: string): Promise<StorageResponse> {
 }
 
 // ============================================================================
+// STORAGE AVG API
+// ============================================================================
+
+export interface StorageAvgResponse {
+  id: number
+  key: string
+  leftBlinkDuration?: number
+  rightBlinkDuration?: number
+  leftMA?: number
+  rightMA?: number
+  leftPupilSize?: number
+  rightPupilSize?: number
+  created_at: string
+}
+
+export async function getStorageAvg(key: string): Promise<StorageAvgResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/storage-avg/${encodeURIComponent(key)}`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+export async function listStorageAvg(tenantId: number, userId: number): Promise<StorageAvgResponse[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/storage-avg`,
+    {
+      headers: getAuthHeaders(),
+      credentials: 'include'
+    }
+  )
+
+  const data = await handleApiResponse(response)
+  return data.averages || []
+}
+
+// ============================================================================
 // SCORES API
 // ============================================================================
 

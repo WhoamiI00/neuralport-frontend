@@ -35,8 +35,17 @@
             stroke-linecap="round"
             transform="rotate(-90 40 40)"
           />
+          <!-- Value text - centered using SVG text anchor -->
+          <text 
+            class="value-text" 
+            x="40" 
+            y="40" 
+            text-anchor="middle" 
+            dominant-baseline="middle"
+            font-size="28"
+            font-weight="700"
+          >{{ value.toFixed(1) }}</text>
         </svg>
-        <span class="value">{{ value.toFixed(1) }}</span>
       </div>
       
       <!-- Right side: Trend sparkline -->
@@ -205,9 +214,6 @@ const trendPoints = computed(() => {
   position: relative;
   width: 80px;
   height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 
   @media (max-width: $breakpoint-md) {
@@ -221,9 +227,9 @@ const trendPoints = computed(() => {
   }
 
   .mini-ring {
-    position: absolute;
     width: 100%;
     height: 100%;
+    display: block;
   }
 
   .ring-bg {
@@ -236,18 +242,18 @@ const trendPoints = computed(() => {
     transition: stroke-dasharray 1s ease-out;
   }
 
-  .value {
-    font-size: 1.5rem;
-    font-weight: $font-weight-bold;
-    color: var(--zen-text-heading);
-    z-index: 1;
+  .value-text {
+    fill: var(--zen-text-heading);
+    transition: fill 0.3s ease;
+    user-select: none;
+    pointer-events: none;
 
     @media (max-width: $breakpoint-md) {
-      font-size: 1.25rem;
+      font-size: 24px;
     }
 
     @media (max-width: $breakpoint-sm) {
-      font-size: 1rem;
+      font-size: 20px;
     }
   }
 }

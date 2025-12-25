@@ -653,7 +653,10 @@ export default defineComponent({
 
                 const items = Array.isArray(scores) ? scores : []
                 
-                // Filter items by date range BEFORE processing
+                // Store total session count (unfiltered) for display
+                this.totalDataPoints = items.length
+                
+                // Filter items by date range for chart data
                 const filteredItems = items.filter(item => {
                     const d = new Date(item.created_at)
                     if (isNaN(d.getTime())) return false
@@ -662,9 +665,6 @@ export default defineComponent({
                 })
                 
                 filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                
-                // Store total data points for session count
-                this.totalDataPoints = filteredItems.length
 
                 let sum = 0
                 let sumSq = 0

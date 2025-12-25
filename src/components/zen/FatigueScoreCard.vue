@@ -42,11 +42,26 @@
           :cy="dotPosition.y"
           r="6"
         />
+        <!-- Score text - centered using SVG text anchor -->
+        <text 
+          class="score-text" 
+          x="60" 
+          y="56" 
+          text-anchor="middle" 
+          dominant-baseline="middle"
+          font-size="32"
+          font-weight="700"
+        >{{ score }}</text>
+        <text 
+          class="max-text" 
+          x="60" 
+          y="72" 
+          text-anchor="middle" 
+          dominant-baseline="middle"
+          font-size="11"
+          font-weight="400"
+        >/ 100</text>
       </svg>
-      <div class="score-value">
-        <span class="value">{{ score }}</span>
-        <span class="max">/ 100</span>
-      </div>
     </div>
   </div>
 </template>
@@ -173,9 +188,6 @@ const dotPosition = computed(() => {
   position: relative;
   width: 110px;
   height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
   @media (max-width: $breakpoint-md) {
     width: 100px;
@@ -191,9 +203,7 @@ const dotPosition = computed(() => {
 .score-ring {
   width: 100%;
   height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
+  display: block;
 }
 
 .ring-bg {
@@ -210,35 +220,31 @@ const dotPosition = computed(() => {
   fill: #3B82F6;
 }
 
-.score-value {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  z-index: 1;
+.score-text {
+  fill: var(--zen-text-heading);
+  transition: fill 0.3s ease;
+  user-select: none;
+  pointer-events: none;
 
-  .value {
-    font-size: 2rem;
-    font-weight: $font-weight-bold;
-    color: var(--zen-text-heading);
-    line-height: 1;
-
-    @media (max-width: $breakpoint-md) {
-      font-size: 1.75rem;
-    }
-
-    @media (max-width: $breakpoint-sm) {
-      font-size: 1.5rem;
-    }
+  @media (max-width: $breakpoint-md) {
+    font-size: 28px;
+    y: 56px;
   }
 
-  .max {
-    font-size: $text-body-xs;
-    color: var(--zen-text-muted);
-    margin-top: $space-1;
+  @media (max-width: $breakpoint-sm) {
+    font-size: 24px;
+    y: 56px;
+  }
+}
 
-    @media (max-width: $breakpoint-sm) {
-      font-size: 10px;
-    }
+.max-text {
+  fill: var(--zen-text-muted);
+  transition: fill 0.3s ease;
+  user-select: none;
+  pointer-events: none;
+
+  @media (max-width: $breakpoint-sm) {
+    font-size: 10px;
   }
 }
 </style>

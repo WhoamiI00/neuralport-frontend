@@ -193,6 +193,38 @@
               <i class="mdi mdi-eye"></i>
               Blink Duration Analysis
             </h3>
+            <!-- Date Navigator with Day/Week/Month Toggle -->
+            <div class="date-navigator">
+              <div class="date-picker-group">
+                <button class="nav-arrow" @click="navigateBlinkDate(-1)">
+                  <i class="mdi mdi-chevron-left"></i>
+                </button>
+                <span class="current-date">{{ formattedBlinkDate }}</span>
+                <button class="nav-arrow" @click="navigateBlinkDate(1)">
+                  <i class="mdi mdi-chevron-right"></i>
+                </button>
+              </div>
+              <div class="view-toggle">
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'day' }]"
+                  @click="blinkViewMode = 'day'"
+                >
+                  Day
+                </button>
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'week' }]"
+                  @click="blinkViewMode = 'week'"
+                >
+                  Week
+                </button>
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'month' }]"
+                  @click="blinkViewMode = 'month'"
+                >
+                  Month
+                </button>
+              </div>
+            </div>
           </div>
           <div class="chart-body">
             <ChartCard :option="blinkDurationOption" :style="{ height: '320px' }" />
@@ -296,21 +328,11 @@
                   {{ formatDateTime(row.date) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="duration" label="Duration" width="100" align="center">
-                <template #default="{ row }">
-                  {{ formatDuration(row.duration) }}
-                </template>
-              </el-table-column>
               <el-table-column prop="fatigueScore" label="Fatigue Score" width="130" align="center" sortable>
                 <template #default="{ row }">
                   <span class="score-badge" :class="getScoreClass(row.fatigueScore)">
                     {{ row.fatigueScore }}
                   </span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="blinkCount" label="Blinks" width="100" align="center">
-                <template #default="{ row }">
-                  {{ row.blinkCount }}
                 </template>
               </el-table-column>
               <el-table-column prop="status" label="Status" width="110" align="center">
@@ -371,59 +393,7 @@
         </div>
       </section>
 
-      <!-- Implementation Notes Section -->
-      <section class="implementation-notes-section">
-        <div class="notes-card">
-          <div class="notes-header">
-            <i class="mdi mdi-information"></i>
-            <h3>Data Integration Status</h3>
-          </div>
-          <div class="notes-content">
-            <div class="note-item">
-              <div class="note-status implemented">
-                <i class="mdi mdi-check-circle"></i>
-                <span>Implemented</span>
-              </div>
-              <div class="note-details">
-                <strong>Profile & Sessions:</strong> Real data from API - Name, PIN, session count, scores, and statistics are fetched from the database.
-              </div>
-            </div>
-            
-            <div class="note-item">
-              <div class="note-status pending">
-                <i class="mdi mdi-clock-outline"></i>
-                <span>Needs Backend</span>
-              </div>
-              <div class="note-details">
-                <strong>Blink Analytics:</strong> Requires storing blink data (left eye, right eye counts) in storage_scores.data JSONB field.
-                <br><code>Example: { "blinks": { "left": 120, "right": 125 } }</code>
-              </div>
-            </div>
-            
-            <div class="note-item">
-              <div class="note-status pending">
-                <i class="mdi mdi-clock-outline"></i>
-                <span>Needs Backend</span>
-              </div>
-              <div class="note-details">
-                <strong>Pupil Tracking:</strong> Requires storing pupil size data in storage_scores.data JSONB field.
-                <br><code>Example: { "pupil": { "left": 3.5, "right": 3.8 } }</code>
-              </div>
-            </div>
-            
-            <div class="note-item">
-              <div class="note-status pending">
-                <i class="mdi mdi-clock-outline"></i>
-                <span>Needs AI Integration</span>
-              </div>
-              <div class="note-details">
-                <strong>AI Insights:</strong> Implement AI analysis endpoint that processes user scores and returns insights/recommendations.
-                <br><code>API: POST /api/ai/analyze-user/{user_id}</code>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- Implementation Notes Section - REMOVED -->
     </main>
 
     <!-- Footer -->
@@ -473,15 +443,13 @@ import {
 // Import data modules
 import type { Member } from '@/data/members'
 import type { MemberDashboard } from '@/data/memberDashboards'
-import { getUser, listScores, getStorage } from '@/lib/api'
+import { getUser, listScores, listStorageAvg, getStorage } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 
 interface Session {
   sessionId: string
   date: string
-  duration: number
   fatigueScore: number
-  blinkCount: number
   status: 'completed' | 'interrupted' | 'pending'
 }
 
@@ -564,9 +532,46 @@ const toggleMobileMenu = () => {
 //   mobileMenuOpen.value = false
 // }
 
+// Blink chart date navigation state
+const blinkViewMode = ref<'day' | 'week' | 'month'>('month')
+const blinkSelectedDate = ref(new Date())
+
 // Pupil chart date navigation state
 const pupilViewMode = ref<'day' | 'week' | 'month'>('month')
 const pupilSelectedDate = ref(new Date())
+
+// Formatted blink date display
+const formattedBlinkDate = computed(() => {
+  const date = new Date(blinkSelectedDate.value)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  
+  if (blinkViewMode.value === 'day') {
+    return `${year}/${month}/${day}`
+  } else if (blinkViewMode.value === 'week') {
+    const startOfWeek = new Date(date)
+    startOfWeek.setDate(date.getDate() - date.getDay())
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(startOfWeek.getDate() + 6)
+    return `${year}/${startOfWeek.getMonth() + 1}/${startOfWeek.getDate()} - ${endOfWeek.getMonth() + 1}/${endOfWeek.getDate()}`
+  } else {
+    return `${year}/${month}`
+  }
+})
+
+// Navigate blink date
+const navigateBlinkDate = (direction: number) => {
+  const date = new Date(blinkSelectedDate.value)
+  if (blinkViewMode.value === 'day') {
+    date.setDate(date.getDate() + direction)
+  } else if (blinkViewMode.value === 'week') {
+    date.setDate(date.getDate() + (direction * 7))
+  } else {
+    date.setMonth(date.getMonth() + direction)
+  }
+  blinkSelectedDate.value = date
+}
 
 // Formatted date display based on view mode
 const formattedPupilDate = computed(() => {
@@ -643,73 +648,62 @@ const allScoresData = ref<any[]>([])
 
 // Fetch scores data whenever view mode or date changes
 const fetchFatigueData = async () => {
-  console.log('🔄 [Fetch] fetchFatigueData called')
-  console.log('🔄 [Fetch] userId.value:', userId.value)
-  
   if (!userId.value) {
-    console.warn('⚠️ [Fetch] No userId - skipping fetch')
     return
   }
   
   try {
     const authStore = useAuthStore()
     const tenantId = parseInt(authStore.user?.tenant_id || '1')
+    const currentUserId = parseInt(userId.value)
     
-    console.log('🔄 [Fetch] Fetching scores for tenantId:', tenantId, 'userId:', userId.value)
+    // Fetch scores and storage_avg in parallel
+    const [scores, storageAverages] = await Promise.all([
+      listScores(tenantId, currentUserId),
+      listStorageAvg(tenantId, currentUserId)
+    ])
     
-    const scores = await listScores(tenantId, parseInt(userId.value))
-    
-    // Fetch storage data to get pupil measurements and blink data
-    const scoresWithPupilData = await Promise.all(
-      (Array.isArray(scores) ? scores : []).map(async (score: any) => {
-        try {
-          const storage = await getStorage(score.key)
-          const data = storage.data || {}
-          
-          console.log('🔍 [Blink Data] Processing score key:', score.key)
-          console.log('🔍 [Blink Data] Storage data:', data)
-          console.log('🔍 [Blink Data] leftBlinkCount from storage:', data.leftBlinkCount)
-          console.log('🔍 [Blink Data] rightBlinkCount from storage:', data.rightBlinkCount)
-          
-          return {
-            ...score,
-            leftPupilDiameter: data.leftPupilDiameter || 0,
-            rightPupilDiameter: data.rightPupilDiameter || 0,
-            leftBlinks: data.leftBlinkCount || 0,
-            rightBlinks: data.rightBlinkCount || 0,
-            sessionDate: data.sessionDate || score.created_at
-          }
-        } catch (err) {
-          console.error('❌ [Blink Data] Error processing score:', err)
-          return {
-            ...score,
-            leftPupilDiameter: 0,
-            rightPupilDiameter: 0,
-            leftBlinks: 0,
-            rightBlinks: 0
-          }
-        }
-      })
+    // Create a map of storage_avg by key for quick lookup
+    const storageAvgMap = new Map(
+      storageAverages.map(avg => [avg.key, avg])
     )
     
-    allScoresData.value = scoresWithPupilData
+    // Merge scores with their storage_avg data
+    const scoresWithStorageData = (Array.isArray(scores) ? scores : []).map((score: any) => {
+      const storageAvg = storageAvgMap.get(score.key)
+      
+      return {
+        ...score,
+        leftPupilSize: storageAvg?.leftPupilSize || 0,
+        rightPupilSize: storageAvg?.rightPupilSize || 0,
+        leftBlinkDuration: storageAvg?.leftBlinkDuration || 0,
+        rightBlinkDuration: storageAvg?.rightBlinkDuration || 0,
+        leftBlinks: storageAvg?.leftBlinkDuration || 0,  // Alias for charts
+        rightBlinks: storageAvg?.rightBlinkDuration || 0, // Alias for charts
+        leftMA: storageAvg?.leftMA || 0,
+        rightMA: storageAvg?.rightMA || 0,
+        sessionDate: score.created_at
+      }
+    })
     
-    console.log('✅ [Fetch] Scores fetched:', allScoresData.value.length, 'items')
-    console.log('✅ [Fetch] Sample scores:', allScoresData.value.slice(0, 3))
+    allScoresData.value = scoresWithStorageData
   } catch (err) {
-    console.error('❌ [Fetch] Error fetching fatigue data:', err)
+    console.error('Error fetching fatigue data:', err)
   }
 }
 
 // Watch for changes and refetch data
 watch([fatigueViewMode, fatigueSelectedDate], () => {
-  console.log('👁️ [Watch] fatigueViewMode or fatigueSelectedDate changed')
   fetchFatigueData()
 }, { immediate: true })
 
+// Watch for blink view mode changes
+watch([blinkViewMode, blinkSelectedDate], () => {
+  // React to changes
+}, { immediate: false })
+
 // Watch for changes and refetch data
 watch([pupilViewMode, pupilSelectedDate], () => {
-  console.log('👁️ [Watch] pupilViewMode or pupilSelectedDate changed')
   fetchFatigueData()
 }, { immediate: true })
 
@@ -836,13 +830,7 @@ const filteredFatigueData = computed(() => {
 
 // Filtered pupil data based on selected date and view mode - using real session data
 const filteredPupilData = computed(() => {
-  console.log('🔍 [Pupil Data] Computing filteredPupilData...')
-  console.log('🔍 [Pupil Data] allScoresData.value:', allScoresData.value?.length, 'items')
-  console.log('🔍 [Pupil Data] pupilViewMode:', pupilViewMode.value)
-  console.log('🔍 [Pupil Data] pupilSelectedDate:', pupilSelectedDate.value)
-  
   if (!allScoresData.value || allScoresData.value.length === 0) {
-    console.warn('⚠️ [Pupil Data] No allScoresData available')
     return []
   }
   
@@ -860,14 +848,6 @@ const filteredPupilData = computed(() => {
     end = endOfMonth(selectedDate)
   }
   
-  console.log('🔍 [Pupil Data] Date range:', format(start, 'yyyy-MM-dd HH:mm'), 'to', format(end, 'yyyy-MM-dd HH:mm'))
-  
-  // Log all score dates to see what we have
-  console.log('📅 [Pupil Data] Available score dates:')
-  allScoresData.value.forEach((item, idx) => {
-    console.log(`  ${idx}: ${item.created_at} (${new Date(item.created_at).toLocaleString()})`)
-  })
-  
   // Filter scores by date range
   const filteredItems = allScoresData.value.filter(item => {
     const d = new Date(item.created_at)
@@ -875,14 +855,6 @@ const filteredPupilData = computed(() => {
     const t = d.getTime()
     return t >= start.getTime() && t <= end.getTime()
   })
-  
-  console.log('🔍 [Pupil Data] Filtered items:', filteredItems.length)
-  if (filteredItems.length > 0) {
-    console.log('🔍 [Pupil Data] Sample pupil values:', {
-      leftPupil: filteredItems[0].leftPupilDiameter,
-      rightPupil: filteredItems[0].rightPupilDiameter
-    })
-  }
   
   filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
   
@@ -892,16 +864,16 @@ const filteredPupilData = computed(() => {
     // For day view, use real pupil data
     result = filteredItems.map(item => ({
       time: format(new Date(item.created_at), 'HH:mm'),
-      leftPupil: item.leftPupilDiameter || 3.5 + Math.random() * 0.5,
-      rightPupil: item.rightPupilDiameter || 3.6 + Math.random() * 0.5
+      leftPupil: item.leftPupilSize || 0,
+      rightPupil: item.rightPupilSize || 0
     }))
   } else if (pupilViewMode.value === 'week') {
     // For week view, sample across 7 days with real data
     const step = Math.max(1, Math.floor(filteredItems.length / 7))
     result = filteredItems.filter((_, index) => index % step === 0).slice(0, 7).map(item => ({
       time: format(new Date(item.created_at), 'MM/dd'),
-      leftPupil: item.leftPupilDiameter || 3.5 + Math.random() * 0.5,
-      rightPupil: item.rightPupilDiameter || 3.6 + Math.random() * 0.5
+      leftPupil: item.leftPupilSize || 0,
+      rightPupil: item.rightPupilSize || 0
     }))
   } else {
     // For month view, create map with actual data
@@ -917,8 +889,8 @@ const filteredPupilData = computed(() => {
         })
       }
       const rec = dayMap.get(dateKey)
-      rec.leftPupil += item.leftPupilDiameter || 0
-      rec.rightPupil += item.rightPupilDiameter || 0
+      rec.leftPupil += item.leftPupilSize || 0
+      rec.rightPupil += item.rightPupilSize || 0
       rec.count += 1
     })
     
@@ -936,8 +908,8 @@ const filteredPupilData = computed(() => {
         const rec = dayMap.get(dateKey)
         result.push({
           time: dateKey,
-          leftPupil: rec.count > 0 ? (rec.leftPupil / rec.count) || 3.5 + Math.random() * 0.5 : null,
-          rightPupil: rec.count > 0 ? (rec.rightPupil / rec.count) || 3.6 + Math.random() * 0.5 : null
+          leftPupil: rec.count > 0 ? (rec.leftPupil / rec.count) : null,
+          rightPupil: rec.count > 0 ? (rec.rightPupil / rec.count) : null
         })
       })
       
@@ -967,8 +939,119 @@ const filteredPupilData = computed(() => {
     }
   }
   
-  console.log('✅ [Pupil Data] Result:', result.length, 'data points')
-  console.log('✅ [Pupil Data] Sample data:', result.slice(0, 3))
+  return result
+})
+
+// Filtered blink data based on selected date and view mode
+const filteredBlinkData = computed(() => {
+  if (!allScoresData.value || allScoresData.value.length === 0) {
+    return []
+  }
+  
+  const selectedDate = new Date(blinkSelectedDate.value)
+  let start: Date, end: Date
+  
+  if (blinkViewMode.value === 'day') {
+    start = startOfDay(selectedDate)
+    end = endOfDay(selectedDate)
+  } else if (blinkViewMode.value === 'week') {
+    start = startOfWeek(selectedDate, { weekStartsOn: 0 })
+    end = endOfWeek(selectedDate, { weekStartsOn: 0 })
+  } else {
+    start = startOfMonth(selectedDate)
+    end = endOfMonth(selectedDate)
+  }
+  
+  // Filter scores by date range
+  const filteredItems = allScoresData.value.filter(item => {
+    const d = new Date(item.created_at)
+    if (isNaN(d.getTime())) return false
+    const t = d.getTime()
+    return t >= start.getTime() && t <= end.getTime()
+  })
+  
+  filteredItems.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  
+  let result: any[] = []
+  
+  if (blinkViewMode.value === 'day') {
+    // For day view, use real blink data
+    result = filteredItems.map(item => ({
+      time: format(new Date(item.created_at), 'HH:mm'),
+      leftBlinks: item.leftBlinks || 0,
+      rightBlinks: item.rightBlinks || 0
+    }))
+  } else if (blinkViewMode.value === 'week') {
+    // For week view, sample across 7 days with real data
+    const step = Math.max(1, Math.floor(filteredItems.length / 7))
+    result = filteredItems.filter((_, index) => index % step === 0).slice(0, 7).map(item => ({
+      time: format(new Date(item.created_at), 'MM/dd'),
+      leftBlinks: item.leftBlinks || 0,
+      rightBlinks: item.rightBlinks || 0
+    }))
+  } else {
+    // For month view, create map with actual data
+    const dayMap = new Map()
+    filteredItems.forEach(item => {
+      const d = new Date(item.created_at)
+      const dateKey = format(d, 'MM/dd')
+      if (!dayMap.has(dateKey)) {
+        dayMap.set(dateKey, {
+          leftBlinks: 0,
+          rightBlinks: 0,
+          count: 0
+        })
+      }
+      const rec = dayMap.get(dateKey)
+      rec.leftBlinks += item.leftBlinks || 0
+      rec.rightBlinks += item.rightBlinks || 0
+      rec.count += 1
+    })
+    
+    // Get all dates that have data
+    const datesWithData = Array.from(dayMap.keys()).sort()
+    
+    if (datesWithData.length > 0) {
+      result = []
+      const selectedDate = new Date(blinkSelectedDate.value)
+      const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate()
+      const step = Math.max(2, Math.floor(daysInMonth / 15))
+      
+      // First, add all dates with actual data
+      datesWithData.forEach(dateKey => {
+        const rec = dayMap.get(dateKey)
+        result.push({
+          time: dateKey,
+          leftBlinks: rec.count > 0 ? (rec.leftBlinks / rec.count) : null,
+          rightBlinks: rec.count > 0 ? (rec.rightBlinks / rec.count) : null
+        })
+      })
+      
+      // Then add some empty dates for spacing
+      for (let day = 1; day <= daysInMonth; day += step) {
+        const currentDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day)
+        const dateKey = format(currentDate, 'MM/dd')
+        if (!result.find(r => r.time === dateKey)) {
+          result.push({
+            time: dateKey,
+            leftBlinks: null,
+            rightBlinks: null
+          })
+        }
+      }
+      
+      // Sort by date
+      result.sort((a, b) => {
+        const aParts = a.time.split('/').map(Number)
+        const bParts = b.time.split('/').map(Number)
+        const aDay = aParts[1] || 0
+        const bDay = bParts[1] || 0
+        return aDay - bDay
+      })
+    } else {
+      result = []
+    }
+  }
   
   return result
 })
@@ -1091,29 +1174,17 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
 })
 
 const blinkDurationOption = computed<EChartsOption>(() => {
-  console.log('📊 [Blink Chart] Computing blinkDurationOption...')
-  console.log('📊 [Blink Chart] allScoresData.value length:', allScoresData.value.length)
-  console.log('📊 [Blink Chart] Sample data:', allScoresData.value.slice(0, 3))
-  
   const textColor = isDark.value ? '#94A3B8' : '#64748B'
   const gridColor = isDark.value ? '#334155' : '#E2E8F0'
   
-  // Use real blink data from allScoresData - don't filter, show all
-  const data = allScoresData.value
-    .map((item, index) => ({
-      session: `Session ${index + 1}`,
-      date: format(new Date(item.sessionDate || item.created_at), 'MM/dd HH:mm'),
-      leftBlinks: item.leftBlinks || 0,
-      rightBlinks: item.rightBlinks || 0
-    }))
-  
-  console.log('📊 [Blink Chart] Processed data:', data)
+  // Use filtered blink data based on view mode
+  const data = filteredBlinkData.value
   
   // Show empty state if no data
   if (!data || data.length === 0) {
     return {
       title: {
-        text: 'No blink data available',
+        text: 'No blink data available for selected period',
         left: 'center',
         top: 'center',
         textStyle: { color: textColor, fontSize: 16 }
@@ -1130,7 +1201,7 @@ const blinkDurationOption = computed<EChartsOption>(() => {
         const dataIndex = params[0].dataIndex
         const sessionData = data[dataIndex]
         if (!sessionData) return ''
-        return `${sessionData.date}<br/>Left Eye: ${sessionData.leftBlinks}<br/>Right Eye: ${sessionData.rightBlinks}`
+        return `${sessionData.time}<br/>Left Eye: ${sessionData.leftBlinks?.toFixed(1) || 0}ms<br/>Right Eye: ${sessionData.rightBlinks?.toFixed(1) || 0}ms`
       }
     },
     legend: {
@@ -1141,12 +1212,12 @@ const blinkDurationOption = computed<EChartsOption>(() => {
     grid: { top: 20, right: 20, bottom: 50, left: 50 },
     xAxis: {
       type: 'category',
-      data: data.map((d: any) => d.session),
+      data: data.map((d: any) => d.time),
       axisLabel: { color: textColor, rotate: 15 }
     },
     yAxis: {
       type: 'value',
-      name: 'Blink Count',
+      name: 'Blink Duration (ms)',
       axisLabel: { color: textColor },
       splitLine: { lineStyle: { color: gridColor } }
     },
@@ -1181,11 +1252,7 @@ const calculateMovingAverage = (data: number[], windowSize: number = 3): number[
 }
 
 const pupilSizeOption = computed<EChartsOption>(() => {
-  console.log('📊 [Pupil Chart] Computing pupilSizeOption...')
-  console.log('📊 [Pupil Chart] memberDashboard.value:', !!memberDashboard.value)
-  
   if (!memberDashboard.value) {
-    console.warn('⚠️ [Pupil Chart] No memberDashboard')
     return {}
   }
   
@@ -1195,12 +1262,8 @@ const pupilSizeOption = computed<EChartsOption>(() => {
   // Use filtered data from filteredPupilData computed property
   const data = filteredPupilData.value
   
-  console.log('📊 [Pupil Chart] filteredPupilData.value:', data?.length, 'items')
-  console.log('📊 [Pupil Chart] Sample data:', data?.slice(0, 3))
-  
   // Show empty state if no data
   if (!data || data.length === 0) {
-    console.warn('⚠️ [Pupil Chart] No data - showing empty state')
     return {
       title: {
         text: 'No pupil tracking data available',
@@ -1217,15 +1280,9 @@ const pupilSizeOption = computed<EChartsOption>(() => {
   const leftPupilData = data.map((d: any) => d.leftPupil)
   const rightPupilData = data.map((d: any) => d.rightPupil)
   
-  console.log('📊 [Pupil Chart] timeLabels:', timeLabels.length, timeLabels.slice(0, 3))
-  console.log('📊 [Pupil Chart] leftPupilData:', leftPupilData.slice(0, 3))
-  console.log('📊 [Pupil Chart] rightPupilData:', rightPupilData.slice(0, 3))
-  
   // Calculate moving averages
   const leftMA = calculateMovingAverage(leftPupilData, 3)
   const rightMA = calculateMovingAverage(rightPupilData, 3)
-
-  console.log('✅ [Pupil Chart] Chart data prepared successfully')
 
   return {
     backgroundColor: 'transparent',
@@ -1425,44 +1482,33 @@ const fetchUserData = async () => {
     const displayName = userProfile.name || `User ${userProfile.pin || userId.value}`
     const avatarUrl = userProfile.portrait_image || ''
     
-    // Fetch user's scores
-    const scores = await listScores(userProfile.tenant_id, userProfile.id)
+    // Fetch user's scores and storage averages in parallel
+    const [scores, storageAverages] = await Promise.all([
+      listScores(userProfile.tenant_id, userProfile.id),
+      listStorageAvg(userProfile.tenant_id, userProfile.id)
+    ])
     
-    // Fetch full storage data for each score to get blink and pupil information
-    const sessionsWithData = await Promise.all(
-      scores.slice(-10).map(async (score: any) => {
-        try {
-          const storage = await getStorage(score.key)
-          const data = storage.data || {}
-          return {
-            score: Number(score.score),
-            created_at: score.created_at,
-            key: score.key,
-            blinkCount: data.blinkCount || 0,
-            leftBlinkCount: data.leftBlinkCount || 0,
-            rightBlinkCount: data.rightBlinkCount || 0,
-            pupilDiameter: data.pupilDiameter || 0,
-            leftPupilDiameter: data.leftPupilDiameter || 0,
-            rightPupilDiameter: data.rightPupilDiameter || 0,
-            eyeTrackingData: data.eyeTrackingData || []
-          }
-        } catch (err) {
-          console.warn(`Failed to fetch storage for key ${score.key}:`, err)
-          return {
-            score: Number(score.score),
-            created_at: score.created_at,
-            key: score.key,
-            blinkCount: 0,
-            leftBlinkCount: 0,
-            rightBlinkCount: 0,
-            pupilDiameter: 0,
-            leftPupilDiameter: 0,
-            rightPupilDiameter: 0,
-            eyeTrackingData: []
-          }
-        }
-      })
+    // Create a map of storage_avg by key for quick lookup
+    const storageAvgMap = new Map(
+      storageAverages.map(avg => [avg.key, avg])
     )
+    
+    // Merge last 10 scores with their storage_avg data
+    const sessionsWithData = scores.slice(-10).map((score: any) => {
+      const storageAvg = storageAvgMap.get(score.key)
+      
+      return {
+        score: Number(score.score),
+        created_at: score.created_at,
+        key: score.key,
+        leftBlinkDuration: storageAvg?.leftBlinkDuration || 0,
+        rightBlinkDuration: storageAvg?.rightBlinkDuration || 0,
+        leftMA: storageAvg?.leftMA || 0,
+        rightMA: storageAvg?.rightMA || 0,
+        leftPupilSize: storageAvg?.leftPupilSize || 0,
+        rightPupilSize: storageAvg?.rightPupilSize || 0
+      }
+    })
     
     // Calculate statistics from scores
     const scoreValues = scores.map((s: any) => Number(s.score))
@@ -1490,11 +1536,11 @@ const fetchUserData = async () => {
       lastActiveDate: scores.length > 0 ? (scores[scores.length - 1]?.created_at || new Date().toISOString()) : new Date().toISOString()
     }
     
-    // Create blink analytics from sessions
+    // Create blink analytics from sessions (using blink duration averages)
     const blinkAnalytics = sessionsWithData.map((session: any, idx: number) => ({
       session: `S${idx + 1}`,
-      leftBlinks: session.leftBlinkCount || 0,
-      rightBlinks: session.rightBlinkCount || 0,
+      leftBlinks: session.leftBlinkDuration || 0,
+      rightBlinks: session.rightBlinkDuration || 0,
       avgFrequency: 15.0  // Default average frequency
     }))
     
@@ -1503,8 +1549,8 @@ const fetchUserData = async () => {
       const date = new Date(session.created_at)
       return {
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        leftPupil: session.leftPupilDiameter || 0,
-        rightPupil: session.rightPupilDiameter || 0
+        leftPupil: session.leftPupilSize || 0,
+        rightPupil: session.rightPupilSize || 0
       }
     })
     
@@ -1527,9 +1573,7 @@ const fetchUserData = async () => {
       recentSessions: sessionsWithData.slice(-5).reverse().map((session: any, _idx: number) => ({
         sessionId: session.key.substring(0, 8).toUpperCase(),
         date: session.created_at,
-        duration: 60, // 60 seconds from our generated data
         fatigueScore: session.score,
-        blinkCount: session.blinkCount,
         status: 'completed' as const
       }))
     }
@@ -1644,11 +1688,11 @@ const exportReport = async () => {
     }
     
     // Create temporary container with clone
-    // A4 landscape ratio: 297mm x 210mm = 1.414:1
-    // For 1440px width, height should be 1440 / 1.414 = 1019px
-    const containerWidth = 1440
-    const a4LandscapeRatio = 297 / 210 // width / height
-    const containerHeight = Math.floor(containerWidth / a4LandscapeRatio)
+    // A4 portrait ratio: 210mm x 297mm
+    // Use 1300px width for better content layout
+    const containerWidth = 1300
+    const a4PortraitRatio = 210 / 297 // width / height
+    const containerHeight = Math.floor(containerWidth / a4PortraitRatio)
     
     tempContainer = document.createElement('div')
     tempContainer.style.position = 'fixed'
@@ -1675,6 +1719,16 @@ const exportReport = async () => {
     // Wait for clone to render
     await new Promise(resolve => setTimeout(resolve, 500))
     
+    // **FIX: Remove fixed heights from all chart containers to prevent clipping**
+    const chartContainers = tempContainer.querySelectorAll('[class*="chart"]')
+    chartContainers.forEach((container) => {
+      const elem = container as HTMLElement
+      elem.style.height = 'auto'
+      elem.style.minHeight = 'auto'
+      elem.style.maxHeight = 'none'
+      elem.style.overflow = 'visible'
+    })
+    
     // Replace ECharts canvas elements with their rendered images
     const originalCharts = mainContent.querySelectorAll('canvas')
     const clonedCharts = tempContainer.querySelectorAll('canvas')
@@ -1689,16 +1743,67 @@ const exportReport = async () => {
           // Create an img element
           const img = document.createElement('img')
           img.src = imgData
-          img.style.width = clonedCanvas.style.width || `${clonedCanvas.width}px`
-          img.style.height = clonedCanvas.style.height || `${clonedCanvas.height}px`
-          img.style.display = 'block'
           
-          // Replace the canvas with the image
+          // Set explicit dimensions to preserve aspect ratio and prevent clipping
+          const aspectRatio = originalCanvas.height / originalCanvas.width
+          img.style.width = '100%'
+          img.style.maxWidth = '100%'
+          img.style.height = 'auto'
+          img.style.minHeight = `${aspectRatio * 100}%`
+          img.style.display = 'block'
+          img.style.objectFit = 'contain'
+          
           if (clonedCanvas.parentNode) {
+            const parent = clonedCanvas.parentNode as HTMLElement
+            parent.style.width = '100%'
+            parent.style.maxWidth = '100%'
+            parent.style.height = 'auto'
+            parent.style.minHeight = 'auto'
+            parent.style.maxHeight = 'none'
+            parent.style.display = 'block'
+            parent.style.overflow = 'visible'
+            
+            // Also fix grandparent and higher ancestors
+            let ancestor = parent.parentElement
+            while (ancestor && ancestor !== tempContainer) {
+              ancestor.style.height = 'auto'
+              ancestor.style.minHeight = 'auto'
+              ancestor.style.maxHeight = 'none'
+              ancestor.style.overflow = 'visible'
+              ancestor = ancestor.parentElement
+            }
+            
             clonedCanvas.parentNode.replaceChild(img, clonedCanvas)
           }
         } catch (e) {
           console.warn('Failed to convert chart canvas:', e)
+        }
+      }
+    })
+    
+    // Final enforcement after image replacement
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    const allImages = tempContainer.querySelectorAll('img')
+    allImages.forEach((img) => {
+      // Check if this is a chart image (has canvas-like dimensions or is in a chart container)
+      const isChartImage = img.closest('[class*="chart"]') !== null
+      if (isChartImage) {
+        img.style.width = '100%'
+        img.style.maxWidth = '100%'
+        img.style.height = 'auto'
+        img.style.minHeight = 'auto'
+        img.style.maxHeight = 'none'
+        img.style.objectFit = 'contain'
+        
+        // Ensure all chart-related parent containers are not clipping
+        let parent = img.parentElement
+        while (parent && parent !== tempContainer) {
+          parent.style.height = 'auto'
+          parent.style.minHeight = 'auto'
+          parent.style.maxHeight = 'none'
+          parent.style.overflow = 'visible'
+          parent = parent.parentElement
         }
       }
     })
@@ -1732,9 +1837,9 @@ const exportReport = async () => {
       throw new Error('Canvas is empty or invalid')
     }
     
-    // Calculate PDF dimensions - A4 landscape is 297mm x 210mm
-    const pdfWidth = 297 // A4 landscape width in mm
-    const pdfHeight = 210 // A4 landscape height in mm
+    // Calculate PDF dimensions - A4 portrait is 210mm x 297mm
+    const pdfWidth = 210 // A4 portrait width in mm
+    const pdfHeight = 297 // A4 portrait height in mm
     
     // Scale canvas to fit PDF width, calculate proportional height
     const imgWidth = pdfWidth
@@ -1743,7 +1848,7 @@ const exportReport = async () => {
     
     // Create PDF
     const pdf = new jsPDF({
-      orientation: 'landscape',
+      orientation: 'portrait',
       unit: 'mm',
       format: 'a4',
       compress: true
@@ -1794,8 +1899,21 @@ const exportReport = async () => {
   }
 }
 
-const viewSession = (session: Session) => {
-  ElMessage.info(`Viewing session ${session.sessionId}`)
+const viewSession = async (session: Session) => {
+  try {
+    // Fetch full storage data for this specific session
+    const storage = await getStorage(session.sessionId)
+    const data = storage.data || {}
+    
+    // Show session details in a dialog or navigate to detailed view
+    ElMessage.success(`Loaded session ${session.sessionId}`)
+    
+    // TODO: You can create a modal/dialog to show detailed session data
+    // or navigate to a dedicated session detail page
+    
+  } catch (error) {
+    ElMessage.error('Failed to load session details')
+  }
 }
 
 // Helpers
