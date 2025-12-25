@@ -1573,7 +1573,9 @@ const fetchUserData = async () => {
       recentSessions: sessionsWithData.slice(-5).reverse().map((session: any, _idx: number) => ({
         sessionId: session.key.substring(0, 8).toUpperCase(),
         date: session.created_at,
+        duration: 0,
         fatigueScore: session.score,
+        blinkCount: 0,
         status: 'completed' as const
       }))
     }
@@ -1902,8 +1904,7 @@ const exportReport = async () => {
 const viewSession = async (session: Session) => {
   try {
     // Fetch full storage data for this specific session
-    const storage = await getStorage(session.sessionId)
-    const data = storage.data || {}
+    await getStorage(session.sessionId)
     
     // Show session details in a dialog or navigate to detailed view
     ElMessage.success(`Loaded session ${session.sessionId}`)
@@ -1929,12 +1930,6 @@ const getInitials = (name: string) => {
 
 const formatDateTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
 // Score color helper - keep for future use
