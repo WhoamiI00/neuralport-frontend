@@ -41,8 +41,31 @@
             <!-- Form Panel -->
             <div class="form-panel">
                 <div class="form-content">
+                    <!-- Login Mode Toggle -->
+                    <div class="login-mode-toggle">
+                        <button 
+                            type="button"
+                            class="mode-btn"
+                            :class="{ active: loginMode === 'user' }"
+                            @click="loginMode = 'user'"
+                        >
+                            <i class="mdi mdi-virtual-reality"></i>
+                            VR Login
+                        </button>
+                        <button 
+                            type="button"
+                            class="mode-btn"
+                            :class="{ active: loginMode === 'superadmin' }"
+                            @click="loginMode = 'superadmin'"
+                        >
+                            <i class="mdi mdi-shield-account"></i>
+                            Superadmin
+                        </button>
+                    </div>
+
                     <Transition name="form-slide" mode="out-in">
-                        <form class="auth-form" @submit.prevent="handleLogin">
+                        <!-- VR User Login Form -->
+                        <form v-if="loginMode === 'user'" key="user-form" class="auth-form" @submit.prevent="handleLogin">
                             <h1 class="form-title">{{ t('auth.title') }}</h1>
                             <p class="form-subtitle">{{ showAdminSetup ? t('auth.adminSetupSubtitle') : t('auth.subtitle') }}</p>
 
@@ -115,6 +138,78 @@
                                 </div>
                             </Transition>
                         </form>
+
+                        <!-- Superadmin Login Form -->
+                        <form v-else key="superadmin-form" class="auth-form" @submit.prevent="handleSuperadminLogin">
+                            <h1 class="form-title">Superadmin Portal</h1>
+                            <p class="form-subtitle">{{ showRegister ? 'Create your superadmin account' : 'Multi-device management access' }}</p>
+
+                            <div class="input-group">
+                                <input 
+                                    type="email" 
+                                    v-model="superadminForm.email"
+                                    placeholder=" "
+                                    required
+                                    autocomplete="email"
+                                />
+                                <label>Email Address</label>
+                                <span class="input-highlight"></span>
+                            </div>
+
+                            <div class="input-group">
+                                <input 
+                                    :type="showSuperadminPassword ? 'text' : 'password'"
+                                    v-model="superadminForm.password"
+                                    placeholder=" "
+                                    required
+                                    autocomplete="current-password"
+                                />
+                                <label>Password</label>
+                                <span class="input-highlight"></span>
+                                <button 
+                                    type="button"
+                                    class="toggle-password-btn"
+                                    @click="showSuperadminPassword = !showSuperadminPassword"
+                                    tabindex="-1"
+                                >
+                                    <i class="mdi" :class="showSuperadminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
+                                </button>
+                            </div>
+
+                            <div v-if="showRegister" class="input-group">
+                                <input 
+                                    type="text"
+                                    v-model="superadminForm.name"
+                                    placeholder=" "
+                                    autocomplete="name"
+                                />
+                                <label>Display Name (optional)</label>
+                                <span class="input-highlight"></span>
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                class="submit-btn" 
+                                :class="{ 'is-loading': loading }"
+                                :disabled="loading"
+                            >
+                                <span class="btn-text">{{ loading ? '' : (showRegister ? 'Create Account' : 'Sign In') }}</span>
+                                <span v-if="loading" class="btn-loader"></span>
+                            </button>
+
+                            <div class="toggle-register">
+                                <span>{{ showRegister ? 'Already have an account?' : 'New superadmin?' }}</span>
+                                <button type="button" class="link-btn" @click="showRegister = !showRegister">
+                                    {{ showRegister ? 'Sign In' : 'Register' }}
+                                </button>
+                            </div>
+
+                            <Transition name="error-slide">
+                                <div v-if="error" class="error-message">
+                                    {{ error }}
+                                </div>
+                            </Transition>
+                        </form>
                     </Transition>
                 </div>
             </div>
@@ -126,11 +221,13 @@
 import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useSuperadminStore } from '../stores/superadmin'
 import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import LanguageToggle from '../components/zen/LanguageToggle.vue'
 
 const authStore = useAuthStore()
+const superadminStore = useSuperadminStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -138,6 +235,11 @@ const route = useRoute()
 const isPageLoaded = ref(false)
 const loading = ref(false)
 const error = ref('')
+
+// Login mode: 'user' or 'superadmin'
+const loginMode = ref<'user' | 'superadmin'>('user')
+const showRegister = ref(false)
+const showSuperadminPassword = ref(false)
 
 // Theme management
 const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
@@ -151,6 +253,13 @@ const loginForm = reactive({
     pin: ''
 })
 
+// Superadmin form data
+const superadminForm = reactive({
+    email: '',
+    password: '',
+    name: ''
+})
+
 const showAdminSetup = ref(false)
 const adminPassword = ref('')
 
@@ -158,7 +267,7 @@ const adminPassword = ref('')
 const showPin = ref(false)
 const showAdminPassword = ref(false)
 
-// Handle login submit
+// Handle VR user login
 async function handleLogin() {
     error.value = ''
     loading.value = true
@@ -184,6 +293,32 @@ async function handleLogin() {
         }
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
+    } finally {
+        loading.value = false
+    }
+}
+
+// Handle superadmin login/register
+async function handleSuperadminLogin() {
+    error.value = ''
+    loading.value = true
+    try {
+        if (showRegister.value) {
+            // Register new superadmin
+            await superadminStore.register(
+                superadminForm.email, 
+                superadminForm.password, 
+                superadminForm.name || undefined
+            )
+        } else {
+            // Login existing superadmin
+            await superadminStore.login(superadminForm.email, superadminForm.password)
+        }
+        
+        // Redirect to dashboard on success
+        router.push('/dashboard')
+    } catch (e: any) {
+        error.value = e?.message ?? (showRegister.value ? 'Registration failed' : 'Login failed')
     } finally {
         loading.value = false
     }
@@ -679,6 +814,106 @@ $dark-peach: #fb7185;
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+// Login Mode Toggle
+.login-mode-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 12px;
+
+    .mode-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: $gray;
+        background: transparent;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s $transition-smooth;
+
+        i {
+            font-size: 1.1rem;
+        }
+
+        &:hover:not(.active) {
+            background: rgba(0, 0, 0, 0.05);
+            color: $dark;
+        }
+
+        &.active {
+            background: white;
+            color: $dark;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+    }
+}
+
+// Toggle Register Link
+.toggle-register {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: $gray;
+
+    .link-btn {
+        background: none;
+        border: none;
+        color: $teal;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 8px;
+        margin-left: 4px;
+        transition: color 0.3s ease;
+
+        &:hover {
+            color: darken($teal, 15%);
+            text-decoration: underline;
+        }
+    }
+}
+
+// Dark mode styles for login toggle
+:global(.dark) {
+    .login-mode-toggle {
+        background: rgba(255, 255, 255, 0.05);
+
+        .mode-btn {
+            color: $dark-text-muted;
+
+            &:hover:not(.active) {
+                background: rgba(255, 255, 255, 0.05);
+                color: $dark-text-body;
+            }
+
+            &.active {
+                background: rgba($dark-teal, 0.2);
+                color: $dark-text-heading;
+                box-shadow: 0 2px 8px rgba($dark-teal, 0.2);
+            }
+        }
+    }
+
+    .toggle-register {
+        color: $dark-text-muted;
+
+        .link-btn {
+            color: $dark-teal;
+
+            &:hover {
+                color: lighten($dark-teal, 10%);
+            }
+        }
+    }
 }
 
 .auth-form {

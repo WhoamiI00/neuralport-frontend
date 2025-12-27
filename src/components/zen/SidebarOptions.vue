@@ -20,9 +20,23 @@
       <!-- Divider for mobile -->
       <div v-if="isMobile" class="options-divider"></div>
 
-      <!-- VR Name Display (clickable/editable for admin only) -->
+      <!-- Superadmin Email Display (when in superadmin mode) -->
+      <div
+        v-if="isSuperadmin && superadminEmail"
+        class="option-item vr-name-option non-clickable"
+      >
+        <i class="mdi mdi-shield-account"></i>
+        <transition name="fade">
+          <span class="option-label">
+            <span class="vr-label">Superadmin</span>
+            <span class="vr-value">{{ superadminEmail }}</span>
+          </span>
+        </transition>
+      </div>
+
+      <!-- VR Name Display (clickable/editable for admin only, hidden in superadmin mode) -->
       <button
-        v-if="vrName"
+        v-else-if="vrName"
         class="option-item vr-name-option"
         :class="{ 'non-clickable': !isAdmin }"
         @click="isAdmin ? handleEditVrName() : null"
@@ -37,7 +51,7 @@
         <i v-if="isAdmin" class="mdi mdi-pencil edit-icon"></i>
       </button>
 
-      <div v-if="vrName" class="options-divider"></div>
+      <div v-if="(isSuperadmin && superadminEmail) || vrName" class="options-divider"></div>
 
       <button
         v-for="option in options"
@@ -68,11 +82,15 @@ interface OptionItem {
 
 interface Props {
   isAdmin?: boolean
+  isSuperadmin?: boolean
+  superadminEmail?: string
   vrName?: string
 }
 
 withDefaults(defineProps<Props>(), {
   isAdmin: false,
+  isSuperadmin: false,
+  superadminEmail: '',
   vrName: ''
 })
 

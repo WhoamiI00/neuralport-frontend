@@ -1,9 +1,16 @@
 // Use Vite dev server proxy - all /api requests will be forwarded to Django backend
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-// Helper to get auth headers
+// Helper to get auth headers - supports both regular auth and superadmin auth
 function getAuthHeaders() {
-  const token = localStorage.getItem('auth_token')
+  // Check for regular auth token first
+  let token = localStorage.getItem('auth_token')
+  
+  // Fall back to superadmin token if no regular token
+  if (!token) {
+    token = localStorage.getItem('superadmin_token')
+  }
+  
   if (!token) {
     throw new Error('No authentication token found')
   }

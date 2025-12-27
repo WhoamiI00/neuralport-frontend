@@ -69,6 +69,41 @@
 
       <!-- Dynamic Content based on Mode -->
       <div class="sidebar-content">
+        <!-- Superadmin Device Selector -->
+        <div v-if="isSuperadmin" class="device-selector">
+          <div class="device-header">
+            <i class="mdi mdi-shield-account"></i>
+            <span>Superadmin Mode</span>
+          </div>
+          
+          <div class="device-list">
+            <div 
+              v-for="device in devices" 
+              :key="device.id"
+              class="device-item"
+              :class="{ 'active': selectedDeviceId === device.id }"
+              @click="emit('select-device', device.id)"
+            >
+              <i class="mdi mdi-virtual-reality"></i>
+              <span class="device-name">{{ device.vr_name || device.device_id }}</span>
+              <button 
+                class="remove-device-btn" 
+                @click.stop="emit('remove-device', device.id)"
+                title="Remove device"
+              >
+                <i class="mdi mdi-close"></i>
+              </button>
+            </div>
+            
+            <button class="add-device-btn" @click="emit('add-device')">
+              <i class="mdi mdi-plus"></i>
+              <span>Add Device</span>
+            </button>
+          </div>
+          
+          <div class="device-divider"></div>
+        </div>
+
         <transition name="slide-fade" mode="out-in">
           <!-- Members Mode -->
           <MemberList
@@ -87,6 +122,8 @@
             v-else
             key="options"
             :is-admin="isAdmin"
+            :is-superadmin="isSuperadmin"
+            :superadmin-email="superadminEmail"
             :vr-name="vrName"
             @option-click="handleOptionClick"
             @edit-vr-name="handleEditVrName"
@@ -126,6 +163,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '../../composables/useTheme'
 import { useAuthStore } from '../../stores/auth'
+import { useSuperadminStore } from '../../stores/superadmin'
 import type { Member } from '../../data/members'
 import MemberList from './MemberList.vue'
 import SidebarOptions from './SidebarOptions.vue'
@@ -135,12 +173,19 @@ interface Props {
   selectedMemberId?: string | null
   isAdmin?: boolean
   vrName?: string
+  // Superadmin props
+  isSuperadmin?: boolean
+  devices?: Array<{ id: number; device_id: string; vr_name?: string }>
+  selectedDeviceId?: number | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedMemberId: null,
   isAdmin: false,
-  vrName: ''
+  vrName: '',
+  isSuperadmin: false,
+  devices: () => [],
+  selectedDeviceId: null
 })
 
 const emit = defineEmits<{
@@ -149,6 +194,11 @@ const emit = defineEmits<{
   (e: 'view-details', memberId: string): void
   (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
   (e: 'edit-vr-name'): void
+  // Superadmin events
+  (e: 'select-device', deviceId: number): void
+  (e: 'add-device'): void
+  (e: 'remove-device', deviceId: number): void
+  (e: 'superadmin-logout'): void
 }>()
 
 const router = useRouter()
@@ -171,6 +221,13 @@ const isMobile = ref(false)
 // ─────────────────────────────────────────────────────────────
 // COMPUTED
 // ─────────────────────────────────────────────────────────────
+
+const superadminStore = useSuperadminStore()
+
+// Get superadmin email from store
+const superadminEmail = computed(() => {
+  return superadminStore.superadmin?.email || ''
+})
 
 const modeIcon = computed(() => {
   return sidebarMode.value === 'members' 
@@ -273,7 +330,12 @@ const handleEditVrName = () => {
 }
 
 const handleLogout = async () => {
-  await authStore.signOut()
+  // Check if superadmin mode, use appropriate logout
+  if (props.isSuperadmin || superadminStore.isAuthenticated) {
+    await superadminStore.logout()
+  } else {
+    await authStore.signOut()
+  }
   router.push('/login')
 }
 
@@ -613,5 +675,126 @@ onUnmounted(() => {
 .slide-fade-leave-to {
   transform: translateX(10px);
   opacity: 0;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SUPERADMIN DEVICE SELECTOR
+// ─────────────────────────────────────────────────────────────
+
+.device-selector {
+  padding: 0 $space-4;
+  margin-bottom: $space-4;
+}
+
+.device-header {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  margin-bottom: $space-3;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-radius: $radius-lg;
+  color: white;
+  font-size: $text-body-sm;
+  font-weight: $font-weight-semibold;
+
+  i {
+    font-size: 18px;
+  }
+}
+
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+}
+
+.device-item {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3;
+  background: var(--zen-bg-secondary);
+  border-radius: $radius-lg;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+
+  i {
+    font-size: 20px;
+    color: var(--zen-text-muted);
+  }
+
+  .device-name {
+    flex: 1;
+    font-size: $text-body-sm;
+    color: var(--zen-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .remove-device-btn {
+    opacity: 0;
+    background: none;
+    border: none;
+    padding: $space-1;
+    cursor: pointer;
+    color: var(--zen-text-muted);
+    transition: all 0.2s ease;
+
+    &:hover {
+      color: var(--zen-accent-danger);
+    }
+  }
+
+  &:hover {
+    background: var(--zen-bg-tertiary);
+
+    .remove-device-btn {
+      opacity: 1;
+    }
+  }
+
+  &.active {
+    background: rgba(var(--zen-accent-teal-rgb), 0.15);
+    border-left: 3px solid var(--zen-accent-teal);
+
+    i {
+      color: var(--zen-accent-teal);
+    }
+
+    .device-name {
+      color: var(--zen-text-heading);
+      font-weight: $font-weight-medium;
+    }
+  }
+}
+
+.add-device-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  padding: $space-3;
+  background: transparent;
+  border: 2px dashed var(--zen-border);
+  border-radius: $radius-lg;
+  color: var(--zen-text-muted);
+  font-size: $text-body-sm;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--zen-accent-teal);
+    color: var(--zen-accent-teal);
+    background: rgba(var(--zen-accent-teal-rgb), 0.05);
+  }
+}
+
+.device-divider {
+  height: 1px;
+  background: var(--zen-border);
+  margin-top: $space-4;
 }
 </style>

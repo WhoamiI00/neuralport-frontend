@@ -445,6 +445,7 @@ import type { Member } from '@/data/members'
 import type { MemberDashboard } from '@/data/memberDashboards'
 import { getUser, listScores, listStorageAvg, getStorage } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
+import { useSuperadminStore } from '@/stores/superadmin'
 
 interface Session {
   sessionId: string
@@ -481,12 +482,15 @@ interface Insight {
 const route = useRoute()
 const router = useRouter()
 const { isDark } = useTheme()
-// const authStore = useAuthStore() // Auth disabled
+const authStore = useAuthStore()
+const superadminStore = useSuperadminStore()
 
 const userId = computed(() => route.params.id as string)
 
-// Check if current user is admin - always true when auth disabled
-const isAdmin = computed(() => true)
+// Check if current user is admin or superadmin
+const isAdmin = computed(() => {
+  return authStore.user?.is_admin === true || superadminStore.isAuthenticated
+})
 
 // Logo source - switches based on theme (from public/images/ folder)
 const logoSrc = computed(() => {
@@ -505,10 +509,14 @@ const toggleLanguage = () => {
   ElMessage.success(isEnglish.value ? 'Language: English' : '言語：日本語')
 }
 
-// Logout handler - disabled
+// Logout handler
 const handleLogout = () => {
-  // authStore.logout()
-  router.push('/dashboard')
+  if (superadminStore.isAuthenticated) {
+    superadminStore.logout()
+  } else {
+    authStore.logout()
+  }
+  router.push('/login')
 }
 
 // State

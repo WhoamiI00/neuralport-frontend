@@ -6,11 +6,18 @@
       :selected-member-id="selectedMemberId"
       :is-admin="isAdmin"
       :vr-name="vrName"
+      :is-superadmin="isSuperadmin"
+      :devices="superadminDevices"
+      :selected-device-id="selectedDeviceId"
       @select-member="handleMemberSelect"
       @deselect-member="handleMemberDeselect"
       @view-details="navigateToUserDetails"
       @create-user="handleCreateUser"
       @edit-vr-name="showEditVrModal = true"
+      @select-device="handleSelectDevice"
+      @add-device="showAddDeviceModal = true"
+      @remove-device="handleRemoveDevice"
+      @superadmin-logout="handleSuperadminLogout"
     />
 
     <!-- Main Content -->
@@ -212,6 +219,59 @@
           </div>
         </div>
       </Transition>
+
+      <!-- Add Device Modal (Superadmin) -->
+      <Transition name="modal-slide">
+        <div 
+          v-if="showAddDeviceModal" 
+          class="modal-overlay" 
+          :class="{ 'dark-mode': isDark }"
+          @click.self="showAddDeviceModal = false"
+        >
+          <div class="modal-container vr-modal">
+            <div class="modal-card">
+              <div class="modal-header">
+                <h2 class="modal-title">
+                  <i class="mdi mdi-plus-box"></i>
+                  Add Device
+                </h2>
+                <button class="close-btn" @click="showAddDeviceModal = false">
+                  <i class="mdi mdi-close"></i>
+                </button>
+              </div>
+              <form class="modal-body" @submit.prevent="handleAddDevice">
+                <div class="form-group">
+                  <label class="form-label">
+                    <i class="mdi mdi-virtual-reality"></i>
+                    Device ID
+                  </label>
+                  <input
+                    v-model="newDeviceId"
+                    type="text"
+                    class="form-input"
+                    placeholder="Enter the VR device ID to manage"
+                    required
+                  />
+                  <span class="form-hint">Enter the device ID of the VR headset you want to manage</span>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" @click="showAddDeviceModal = false">
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    class="btn btn-primary"
+                    :disabled="!newDeviceId.trim()"
+                  >
+                    <i class="mdi mdi-plus"></i>
+                    Add Device
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </Teleport>
   </div>
 </template>
@@ -223,6 +283,7 @@ import { ElMessage } from 'element-plus'
 import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
+import { useSuperadminStore } from '../stores/superadmin'
 import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, listTenantScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
 import { fetchWithCache } from '../lib/cache'
 import * as echarts from "echarts"
@@ -255,11 +316,13 @@ export default defineComponent({
         const { isDark } = useTheme()
         const { t } = useLanguage()
         const router = useRouter()
+        const superadminStore = useSuperadminStore()
         
         return {
             isDark,
             t,
-            router
+            router,
+            superadminStore
         }
     },
     data() {
@@ -295,7 +358,12 @@ export default defineComponent({
             showEditVrModal: false,
             editVrNameForm: '',
             isUpdatingVrName: false,
-            vrName: ''
+            vrName: '',
+            
+            // Superadmin mode
+            selectedDeviceId: null,
+            showAddDeviceModal: false,
+            newDeviceId: ''
         }
     },
     computed: {
@@ -306,6 +374,19 @@ export default defineComponent({
         isAdmin() {
             const authStore = useAuthStore()
             return authStore.user?.is_admin === true
+        },
+        
+        isSuperadmin() {
+            return this.superadminStore.isAuthenticated
+        },
+        
+        superadminDevices() {
+            return this.superadminStore.devices
+        },
+        
+        currentDevice() {
+            if (!this.selectedDeviceId) return null
+            return this.superadminDevices.find(d => d.id === this.selectedDeviceId) || null
         },
         
         pageTitle() {
@@ -414,6 +495,11 @@ export default defineComponent({
         },
         
         getTenantId() {
+            // For superadmin mode, use the selected device's id (which IS the tenant_id)
+            if (this.isSuperadmin && this.selectedDeviceId) {
+                return this.selectedDeviceId
+            }
+            
             if (this.selectedMemberId) {
                 const member = this.members.find(m => m.id === this.selectedMemberId)
                 if (member?.tenantId) return member.tenantId
@@ -471,7 +557,11 @@ export default defineComponent({
             // userData contains: { pin, username, avatar, avatarUrl }
             
             const auth = useAuthStore()
-            if (!auth || !auth.token) {
+            const superadminStore = useSuperadminStore()
+            
+            // Check for either regular auth or superadmin auth
+            const hasAuth = (auth && auth.token) || superadminStore.isAuthenticated
+            if (!hasAuth) {
                 ElMessage.error('Authentication token not found. Please login as admin.')
                 return
             }
@@ -503,7 +593,11 @@ export default defineComponent({
             // memberData contains: { id, username, avatar, avatarUrl }
             
             const auth = useAuthStore()
-            if (!auth || !auth.token) {
+            const superadminStore = useSuperadminStore()
+            
+            // Check for either regular auth or superadmin auth
+            const hasAuth = (auth && auth.token) || superadminStore.isAuthenticated
+            if (!hasAuth) {
                 ElMessage.error('Authentication token not found. Please login.')
                 return
             }
@@ -545,10 +639,17 @@ export default defineComponent({
         
         async handleUpdateVrName() {
             const auth = useAuthStore()
-            if (!auth || !auth.token) {
+            const superadminStore = useSuperadminStore()
+            
+            // Check for either regular auth or superadmin auth
+            const hasAuth = (auth && auth.token) || superadminStore.isAuthenticated
+            if (!hasAuth) {
                 ElMessage.error('Authentication token not found. Please login as admin.')
                 return
             }
+            
+            // Get the appropriate token
+            const token = auth.token || localStorage.getItem('superadmin_token')
             
             this.isUpdatingVrName = true
             
@@ -557,7 +658,7 @@ export default defineComponent({
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${auth.token}`
+                        'Authorization': `Bearer ${token}`
                     },
                     body: JSON.stringify({
                         vrName: this.editVrNameForm.trim()
@@ -593,6 +694,102 @@ export default defineComponent({
             }
         },
         
+        // ========== SUPERADMIN METHODS ==========
+        
+        async loadSuperadminDeviceData(deviceId) {
+            if (!deviceId) return
+            
+            this.loading = true
+            try {
+                // Fetch users for the selected device
+                await this.superadminStore.fetchDeviceUsers(deviceId)
+                
+                // Transform device users to members format for sidebar
+                const deviceUsers = this.superadminStore.deviceUsers[deviceId] || []
+                this.members = deviceUsers.map(u => ({
+                    id: String(u.id),
+                    name: u.name || u.username || `User ${u.id}`,
+                    avatarUrl: u.portrait_image || null,
+                    tenantId: u.tenant_id
+                }))
+                
+                // Update global stats
+                const dashboard = this.superadminStore.dashboardStats
+                if (dashboard) {
+                    this.globalStats = {
+                        totalUsers: dashboard.total_users || 0,
+                        totalSessions: dashboard.total_sessions || 0,
+                        avgFatigueScore: dashboard.average_score?.toFixed(1) || 'N/A',
+                        standardDeviation: dashboard.std_deviation?.toFixed(2) || 'N/A'
+                    }
+                }
+                
+                // Get VR name for this device
+                const device = this.superadminDevices.find(d => d.id === deviceId)
+                if (device) {
+                    this.vrName = device.vr_name || device.device_id
+                }
+                
+            } catch (e) {
+                ElMessage.error(`Failed to load device data: ${e?.message || e}`)
+            } finally {
+                this.loading = false
+            }
+        },
+        
+        async handleSelectDevice(deviceId) {
+            this.selectedDeviceId = deviceId
+            this.selectedMemberId = null
+            await this.loadSuperadminDeviceData(deviceId)
+            await this.refreshChartWithNewData()
+        },
+        
+        async handleAddDevice() {
+            if (!this.newDeviceId.trim()) {
+                ElMessage.warning('Please enter a device ID')
+                return
+            }
+            
+            try {
+                await this.superadminStore.addDevice(this.newDeviceId.trim())
+                ElMessage.success(`Device "${this.newDeviceId}" added successfully!`)
+                this.newDeviceId = ''
+                this.showAddDeviceModal = false
+                
+                // Refresh devices list
+                await this.superadminStore.fetchDevices()
+            } catch (e) {
+                ElMessage.error(e?.message || 'Failed to add device')
+            }
+        },
+        
+        async handleRemoveDevice(deviceId) {
+            try {
+                await this.superadminStore.removeDevice(deviceId)
+                ElMessage.success('Device removed successfully')
+                
+                // If removed device was selected, select another one
+                if (this.selectedDeviceId === deviceId) {
+                    if (this.superadminDevices.length > 0) {
+                        this.selectedDeviceId = this.superadminDevices[0].id
+                        await this.loadSuperadminDeviceData(this.selectedDeviceId)
+                    } else {
+                        this.selectedDeviceId = null
+                        this.members = []
+                    }
+                }
+            } catch (e) {
+                ElMessage.error(e?.message || 'Failed to remove device')
+            }
+        },
+        
+        handleSuperadminLogout() {
+            this.superadminStore.logout()
+            this.router.push('/login')
+        },
+        
+        // ========== END SUPERADMIN METHODS ==========
+        
         async fetchChartData() {
             let lineData = []
             let barData = []
@@ -601,6 +798,12 @@ export default defineComponent({
             const token = auth.token
             const user_id = this.getUserId()
             const tenant_id = this.getTenantId()
+            
+            console.log('[fetchChartData] isSuperadmin:', this.isSuperadmin)
+            console.log('[fetchChartData] selectedDeviceId:', this.selectedDeviceId)
+            console.log('[fetchChartData] tenant_id:', tenant_id)
+            console.log('[fetchChartData] selectedMemberId:', this.selectedMemberId)
+            
             let start, end
             
             if (this.mode === "Day") {
@@ -618,11 +821,12 @@ export default defineComponent({
                 // If a specific member is selected (admin or regular user), fetch only their scores
                 // If admin with no member selected, fetch all scores for the VR device (tenant)
                 const authStore = useAuthStore()
-                const token = authStore.token || ''
+                const token = authStore.token || localStorage.getItem('superadmin_token') || ''
                 let scores
                 
                 if (this.selectedMemberId) {
                     // Specific user is selected - fetch only their scores with caching
+                    console.log('[fetchChartData] Fetching user scores for user:', user_id)
                     const cacheKey = `user_scores_${user_id}`
                     scores = await fetchWithCache(
                         cacheKey,
@@ -630,8 +834,9 @@ export default defineComponent({
                         token,
                         () => listScores(tenant_id, parseInt(user_id))
                     )
-                } else if (this.isAdmin) {
-                    // Admin with no user selected - fetch all tenant scores with caching
+                } else if (this.isAdmin || this.isSuperadmin) {
+                    // Admin or Superadmin with no user selected - fetch all tenant scores with caching
+                    console.log('[fetchChartData] Fetching tenant scores for tenant:', tenant_id)
                     const cacheKey = `tenant_scores_${tenant_id}`
                     scores = await fetchWithCache(
                         cacheKey,
@@ -640,6 +845,7 @@ export default defineComponent({
                         () => listTenantScores(tenant_id),
                         true
                     )
+                    console.log('[fetchChartData] Got scores:', scores?.length || 0)
                 } else {
                     // Regular user - fetch their own scores with caching
                     const cacheKey = `user_scores_${user_id}`
@@ -1016,6 +1222,39 @@ export default defineComponent({
 
     async mounted() {
         const auth = useAuthStore()
+        
+        // Check if we're in superadmin mode
+        if (this.isSuperadmin) {
+            this.loading = true
+            try {
+                // Load superadmin dashboard data
+                await this.superadminStore.fetchDashboard()
+                await this.superadminStore.fetchDevices()
+                
+                // Auto-select first device if available
+                if (this.superadminDevices.length > 0) {
+                    this.selectedDeviceId = this.superadminDevices[0].id
+                    await this.loadSuperadminDeviceData(this.selectedDeviceId)
+                } else {
+                    // No devices yet - show empty state
+                    this.members = []
+                    this.globalStats = {
+                        totalUsers: 0,
+                        totalSessions: 0,
+                        avgFatigueScore: 'N/A',
+                        standardDeviation: 'N/A'
+                    }
+                }
+            } catch (e) {
+                console.error('Superadmin data load error:', e)
+                ElMessage.error(`Failed to load superadmin data: ${e?.message || e}`)
+            }
+            this.loading = false
+            await this.$nextTick()
+            await this.initChart1()
+            window.addEventListener("resize", this.__resizeHandler)
+            return
+        }
         
         // Initialize VR name from auth store
         if (auth.user?.vr_name) {

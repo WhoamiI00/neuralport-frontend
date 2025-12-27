@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useSuperadminStore } from '../stores/superadmin'
 import LoginView from '../views/LoginView.vue'
 import AccountView from '../views/AccountView.vue'
 import StorageDemoView from '../views/StorageDemoView.vue'
@@ -48,10 +49,20 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+  const superadminStore = useSuperadminStore()
   
+  // Initialize stores if loading
   if (authStore.loading) {
     await authStore.initialize()
   }
+  
+  // Initialize superadmin store from localStorage
+  if (superadminStore.loading) {
+    superadminStore.initialize()
+  }
+  
+  // Check if user is authenticated (either regular user or superadmin)
+  const isAuthenticated = authStore.isAuthenticated || superadminStore.isAuthenticated
 
   // Only validate token if coming from login or on first load
   // Don't validate on every navigation to avoid excessive API calls
@@ -63,9 +74,9 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+  if (to.meta.requiresAuth && !isAuthenticated) {
     next('/login')
-  } else if (to.name === 'login' && authStore.isAuthenticated) {
+  } else if (to.name === 'login' && isAuthenticated) {
     // Redirect authenticated users away from login
     next('/dashboard')
   } else if (to.meta.requiresAdmin && !authStore.user?.is_admin) {
