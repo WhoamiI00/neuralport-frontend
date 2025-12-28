@@ -6,6 +6,7 @@
       :selected-member-id="selectedMemberId"
       :is-admin="isAdmin"
       :vr-name="vrName"
+      :device-id="deviceId"
       :is-superadmin="isSuperadmin"
       :devices="superadminDevices"
       :selected-device-id="selectedDeviceId"
@@ -279,7 +280,7 @@
 <script>
 import { defineComponent } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
@@ -359,6 +360,7 @@ export default defineComponent({
             editVrNameForm: '',
             isUpdatingVrName: false,
             vrName: '',
+            deviceId: '',
             
             // Superadmin mode
             selectedDeviceId: null,
@@ -581,8 +583,14 @@ export default defineComponent({
                 // Show success message
                 ElMessage.success(`User "${userData.username}" created successfully!`)
                 
-                // Refresh the member list from backend
-                await this.fetchGroup()
+                // Refresh the member list from backend (without affecting chart)
+                if (this.isSuperadmin && this.selectedDeviceId) {
+                    // Superadmin mode: light refresh of device users only
+                    await this.refreshSuperadminMembers(this.selectedDeviceId)
+                } else {
+                    // Regular admin mode: refresh group
+                    await this.fetchGroup()
+                }
                 
             } catch (e) {
                 ElMessage.error(`Network error: ${e?.message || e}`)
@@ -625,8 +633,15 @@ export default defineComponent({
                 // Show success message
                 ElMessage.success(`Member "${memberData.username}" updated successfully!`)
                 
-                // Refresh the member list and user info from backend
-                await this.fetchGroup()
+                // Refresh the member list from backend (without affecting chart)
+                if (this.isSuperadmin && this.selectedDeviceId) {
+                    // Superadmin mode: light refresh of device users only
+                    await this.refreshSuperadminMembers(this.selectedDeviceId)
+                } else {
+                    // Regular admin mode: refresh group
+                    await this.fetchGroup()
+                }
+                
                 if (this.selectedMemberId === memberData.id) {
                     await this.fetchUser()
                     await this.fetchLatest()
@@ -737,6 +752,27 @@ export default defineComponent({
             }
         },
         
+        // Light refresh for superadmin - only updates members list without affecting chart/loading state
+        async refreshSuperadminMembers(deviceId) {
+            if (!deviceId) return
+            
+            try {
+                // Fetch users for the selected device
+                await this.superadminStore.fetchDeviceUsers(deviceId)
+                
+                // Transform device users to members format for sidebar
+                const deviceUsers = this.superadminStore.deviceUsers[deviceId] || []
+                this.members = deviceUsers.map(u => ({
+                    id: String(u.id),
+                    name: u.name || u.username || `User ${u.id}`,
+                    avatarUrl: u.portrait_image || null,
+                    tenantId: u.tenant_id
+                }))
+            } catch (e) {
+                console.error('Failed to refresh members:', e)
+            }
+        },
+        
         async handleSelectDevice(deviceId) {
             this.selectedDeviceId = deviceId
             this.selectedMemberId = null
@@ -764,7 +800,23 @@ export default defineComponent({
         },
         
         async handleRemoveDevice(deviceId) {
+            // Find device name for confirmation message
+            const device = this.superadminDevices.find(d => d.id === deviceId)
+            const deviceName = device?.name || device?.device_id || 'this device'
+            
             try {
+                // Show confirmation dialog
+                await ElMessageBox.confirm(
+                    `Are you sure you want to remove "${deviceName}" from your managed devices? This action cannot be undone.`,
+                    'Remove Device',
+                    {
+                        confirmButtonText: 'Remove',
+                        cancelButtonText: 'Cancel',
+                        type: 'warning',
+                    }
+                )
+                
+                // User confirmed, proceed with removal
                 await this.superadminStore.removeDevice(deviceId)
                 ElMessage.success('Device removed successfully')
                 
@@ -779,7 +831,10 @@ export default defineComponent({
                     }
                 }
             } catch (e) {
-                ElMessage.error(e?.message || 'Failed to remove device')
+                // User cancelled or error occurred
+                if (e !== 'cancel' && e?.toString() !== 'cancel') {
+                    ElMessage.error(e?.message || 'Failed to remove device')
+                }
             }
         },
         
@@ -1256,10 +1311,13 @@ export default defineComponent({
             return
         }
         
-        // Initialize VR name from auth store
+        // Initialize VR name and device ID from auth store
         if (auth.user?.vr_name) {
             this.vrName = auth.user.vr_name
             this.editVrNameForm = auth.user.vr_name
+        }
+        if (auth.user?.device_id) {
+            this.deviceId = auth.user.device_id
         }
         
         // Admins don't have user data to load, only fetch the group

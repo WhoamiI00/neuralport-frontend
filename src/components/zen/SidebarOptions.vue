@@ -46,6 +46,7 @@
           <span class="option-label">
             <span class="vr-label">VR Name</span>
             <span class="vr-value">{{ vrName }}</span>
+            <span v-if="deviceId" class="device-id">ID: {{ deviceId }}</span>
           </span>
         </transition>
         <i v-if="isAdmin" class="mdi mdi-pencil edit-icon"></i>
@@ -85,13 +86,15 @@ interface Props {
   isSuperadmin?: boolean
   superadminEmail?: string
   vrName?: string
+  deviceId?: string
 }
 
 withDefaults(defineProps<Props>(), {
   isAdmin: false,
   isSuperadmin: false,
   superadminEmail: '',
-  vrName: ''
+  vrName: '',
+  deviceId: ''
 })
 
 const emit = defineEmits<{
@@ -254,6 +257,13 @@ const handleOptionClick = (option: OptionItem) => {
     font-size: $text-body-sm;
     font-weight: $font-weight-semibold;
     color: var(--zen-text-primary);
+  }
+
+  .device-id {
+    font-size: $text-body-xs;
+    color: var(--zen-text-muted);
+    opacity: 0.7;
+    margin-top: 2px;
   }
 
   .edit-icon {

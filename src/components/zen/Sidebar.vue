@@ -125,6 +125,7 @@
             :is-superadmin="isSuperadmin"
             :superadmin-email="superadminEmail"
             :vr-name="vrName"
+            :device-id="deviceId"
             @option-click="handleOptionClick"
             @edit-vr-name="handleEditVrName"
             @logout="handleLogout"
@@ -173,6 +174,7 @@ interface Props {
   selectedMemberId?: string | null
   isAdmin?: boolean
   vrName?: string
+  deviceId?: string
   // Superadmin props
   isSuperadmin?: boolean
   devices?: Array<{ id: number; device_id: string; vr_name?: string }>
@@ -183,6 +185,7 @@ const props = withDefaults(defineProps<Props>(), {
   selectedMemberId: null,
   isAdmin: false,
   vrName: '',
+  deviceId: '',
   isSuperadmin: false,
   devices: () => [],
   selectedDeviceId: null

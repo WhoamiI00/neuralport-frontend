@@ -53,6 +53,59 @@ $--font-path: "~element-ui/lib/theme-chalk/fonts";
     box-sizing: border-box;
 }
 
+// Dark mode styles for message box
+.dark .el-message-box,
+.dark-mode .el-message-box,
+[data-theme="dark"] .el-message-box {
+    background-color: #1e293b;
+    border-color: #334155;
+    
+    .el-message-box__header {
+        background-color: #1e293b;
+    }
+    
+    .el-message-box__title {
+        color: #f1f5f9;
+    }
+    
+    .el-message-box__content {
+        color: #cbd5e1;
+    }
+    
+    .el-message-box__message {
+        color: #cbd5e1;
+    }
+    
+    .el-message-box__close {
+        color: #94a3b8;
+        
+        &:hover {
+            color: #f1f5f9;
+        }
+    }
+    
+    .el-message-box__btns {
+        .el-button--default {
+            background-color: #334155;
+            border-color: #475569;
+            color: #e2e8f0;
+            
+            &:hover {
+                background-color: #475569;
+                border-color: #64748b;
+                color: #f8fafc;
+            }
+        }
+    }
+}
+
+// Dark mode overlay
+.dark .el-overlay,
+.dark-mode .el-overlay,
+[data-theme="dark"] .el-overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
 .el-menu--horizontal {
     min-height: 35px;
 
