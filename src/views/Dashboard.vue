@@ -15,6 +15,7 @@
       @view-details="navigateToUserDetails"
       @create-user="handleCreateUser"
       @edit-vr-name="showEditVrModal = true"
+      @manage-tags="showTagManager = true"
       @select-device="handleSelectDevice"
       @add-device="showAddDeviceModal = true"
       @remove-device="handleRemoveDevice"
@@ -59,6 +60,7 @@
                 @close="handleMemberDeselect"
                 @view-details="navigateToUserDetails"
                 @update-member="handleUpdateMember"
+                @tags-updated="handleTagsChanged"
               />
             </section>
           </transition>
@@ -273,6 +275,12 @@
           </div>
         </div>
       </Transition>
+
+      <!-- Tag Manager Modal -->
+      <TagManager 
+        v-model:visible="showTagManager"
+        @refresh="handleTagsChanged"
+      />
     </Teleport>
   </div>
 </template>
@@ -300,6 +308,7 @@ import ThemeToggle from '../components/zen/ThemeToggle.vue'
 import LanguageToggle from '../components/zen/LanguageToggle.vue'
 import MemberSummaryCard from '../components/zen/MemberSummaryCard.vue'
 import CustomLoader from '../components/zen/CustomLoader.vue'
+import TagManager from '../components/zen/TagManager.vue'
 
 export default defineComponent({
     name: "Dashboard",
@@ -308,7 +317,8 @@ export default defineComponent({
         ThemeToggle, 
         LanguageToggle, 
         MemberSummaryCard,
-        CustomLoader 
+        CustomLoader,
+        TagManager
     },
     props: {
         login_user_id_from_path: { type: String, required: false }
@@ -365,7 +375,10 @@ export default defineComponent({
             // Superadmin mode
             selectedDeviceId: null,
             showAddDeviceModal: false,
-            newDeviceId: ''
+            newDeviceId: '',
+            
+            // Tag management
+            showTagManager: false
         }
     },
     computed: {
@@ -766,7 +779,8 @@ export default defineComponent({
                     id: String(u.id),
                     name: u.name || u.username || `User ${u.id}`,
                     avatarUrl: u.portrait_image || null,
-                    tenantId: u.tenant_id
+                    tenantId: u.tenant_id,
+                    tags: u.tags || []
                 }))
             } catch (e) {
                 console.error('Failed to refresh members:', e)
@@ -844,6 +858,24 @@ export default defineComponent({
         },
         
         // ========== END SUPERADMIN METHODS ==========
+        
+        // ========== TAG MANAGEMENT ==========
+        
+        async handleTagsChanged() {
+            // Refresh member list to get updated tags
+            if (this.isSuperadmin && this.selectedDeviceId) {
+                await this.refreshSuperadminMembers(this.selectedDeviceId)
+            } else {
+                await this.fetchGroup()
+            }
+            
+            // If a user is selected, refresh their data
+            if (this.selectedMemberId) {
+                await this.fetchUser()
+            }
+        },
+        
+        // ========== END TAG MANAGEMENT ==========
         
         async fetchChartData() {
             let lineData = []
@@ -1212,7 +1244,8 @@ export default defineComponent({
                             avatarUrl: avatarUrl,
                             tenantId: user.tenant_id,
                             fatigueScore: 0,
-                            status: 'normal'
+                            status: 'normal',
+                            tags: user.tags || []
                         }
                     })
                     

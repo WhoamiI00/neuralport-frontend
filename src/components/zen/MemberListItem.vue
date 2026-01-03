@@ -131,7 +131,8 @@ const initials = computed(() => {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .member-name {

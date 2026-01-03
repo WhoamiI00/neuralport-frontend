@@ -54,6 +54,20 @@
 
       <div v-if="(isSuperadmin && superadminEmail) || vrName" class="options-divider"></div>
 
+      <!-- Admin-only: Manage Tags -->
+      <button
+        v-if="isAdmin && !isSuperadmin"
+        class="option-item"
+        @click="emit('manage-tags')"
+      >
+        <i class="mdi mdi-tag-multiple"></i>
+        <transition name="fade">
+          <span class="option-label">Manage Tags</span>
+        </transition>
+      </button>
+
+      <div v-if="isAdmin && !isSuperadmin" class="options-divider"></div>
+
       <button
         v-for="option in options"
         :key="option.id"
@@ -102,6 +116,7 @@ const emit = defineEmits<{
   (e: 'theme-toggle'): void
   (e: 'edit-vr-name'): void
   (e: 'logout'): void
+  (e: 'manage-tags'): void
 }>()
 
 const { isDark, toggleTheme } = useTheme()

@@ -26,6 +26,15 @@
           <h2 class="name">{{ member.name }}</h2>
           <p class="pin" v-if="member.pin">PIN: {{ member.pin }}</p>
           <p class="sessions">{{ formattedSessions }}</p>
+          
+          <!-- Tag Selector for Admin -->
+          <div class="tags-section">
+            <TagSelector 
+              :user-id="parseInt(member.id)" 
+              :model-value="member.tags || []"
+              @tags-updated="handleTagsUpdated"
+            />
+          </div>
         </div>
       </div>
 
@@ -96,6 +105,7 @@ import type { MemberSummary } from '../../data/memberDashboards'
 import { useTheme } from '../../composables/useTheme'
 import { useLanguage } from '../../composables/useLanguage'
 import EditMemberModal from './EditMemberModal.vue'
+import TagSelector from './TagSelector.vue'
 
 interface Props {
   member: Member
@@ -108,6 +118,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'view-details', memberId: string): void
   (e: 'update-member', memberData: { id: string; username: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'tags-updated'): void
 }>()
 
 const { isDark } = useTheme()
@@ -122,6 +133,10 @@ const openEditModal = () => {
 
 const handleUpdateMember = (memberData: { id: string; username: string; avatar: File | null; avatarUrl: string | null }) => {
   emit('update-member', memberData)
+}
+
+const handleTagsUpdated = () => {
+  emit('tags-updated')
 }
 
 // Check if this is a new user with no data
@@ -343,6 +358,10 @@ const latestDateFormatted = computed(() => {
     margin: 0;
     opacity: 0.7;
     transition: color 0.3s ease;
+  }
+  
+  .tags-section {
+    margin-top: 12px;
   }
 }
 

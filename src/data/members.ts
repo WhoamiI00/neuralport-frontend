@@ -5,6 +5,8 @@
  * Replace with API calls later: fetch('/api/members')
  */
 
+import type { Tag } from '@/lib/api'
+
 export interface Member {
   id: string
   name: string
@@ -16,6 +18,7 @@ export interface Member {
   role?: string
   joinDate?: string
   lastActiveDate?: string
+  tags?: Tag[]  // User tags for categorization
 }
 
 export const members: Member[] = [

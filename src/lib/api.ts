@@ -45,6 +45,19 @@ async function handleApiResponse(response: Response) {
 }
 
 // ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+export interface Tag {
+  id: number
+  name: string
+  category?: string
+  color: string
+  description?: string
+  created_at?: string
+}
+
+// ============================================================================
 // PROFILE API
 // ============================================================================
 
@@ -196,6 +209,7 @@ export interface UserProfile {
   name?: string
   uniform_number?: string | number
   portrait_image?: string
+  tags?: Tag[]
 }
 
 export async function getUser(userId: number): Promise<UserProfile> {
@@ -278,6 +292,84 @@ export async function updateAvatar(data: UpdateAvatarRequest): Promise<{ success
   return handleApiResponse(response)
 }
 
+// ============================================================================
+// TAGS API
+// ============================================================================
+
+export interface CreateTagRequest {
+  name: string
+  category?: string
+  color?: string
+  description?: string
+}
+
+export async function listTags(): Promise<Tag[]> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/tags`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  const data = await handleApiResponse(response)
+  return data.tags || []
+}
+
+export async function createTag(tagData: CreateTagRequest): Promise<Tag> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/tags`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(tagData)
+  })
+
+  return handleApiResponse(response)
+}
+
+export async function deleteTag(tagId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/tags/${tagId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  await handleApiResponse(response)
+}
+
+export async function getTagSuggestions(query: string = ''): Promise<Tag[]> {
+  const url = query 
+    ? `${API_BASE_URL}/api/admin/tags/suggestions?q=${encodeURIComponent(query)}`
+    : `${API_BASE_URL}/api/admin/tags/suggestions`
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  const data = await handleApiResponse(response)
+  return data.suggestions || []
+}
+
+export async function assignTagsToUser(userId: number, tagIds: number[]): Promise<Tag[]> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/tags`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ tag_ids: tagIds })
+  })
+
+  const data = await handleApiResponse(response)
+  return data.tags || []
+}
+
+export async function removeTagFromUser(userId: number, tagId: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/tags/${tagId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  await handleApiResponse(response)
+}
+
 // Export convenience object with all API functions
 export const api = {
   // Profile
@@ -295,5 +387,12 @@ export const api = {
   // Admin
   createUser,
   renameUser,
-  updateAvatar
+  updateAvatar,
+  // Tags
+  listTags,
+  createTag,
+  deleteTag,
+  getTagSuggestions,
+  assignTagsToUser,
+  removeTagFromUser
 }

@@ -71,35 +71,44 @@
       <div class="sidebar-content">
         <!-- Superadmin Device Selector -->
         <div v-if="isSuperadmin" class="device-selector">
-          <div class="device-header">
-            <i class="mdi mdi-shield-account"></i>
-            <span>Superadmin Mode</span>
+          <div 
+            class="device-header" 
+            :class="{ 'expanded': devicesExpanded }"
+            @click="devicesExpanded = !devicesExpanded"
+          >
+            <div class="device-header-content">
+              <i class="mdi mdi-shield-account"></i>
+              <span>Superadmin Mode</span>
+            </div>
+            <i class="mdi toggle-icon" :class="devicesExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down'"></i>
           </div>
           
-          <div class="device-list">
-            <div 
-              v-for="device in devices" 
-              :key="device.id"
-              class="device-item"
-              :class="{ 'active': selectedDeviceId === device.id }"
-              @click="emit('select-device', device.id)"
-            >
-              <i class="mdi mdi-virtual-reality"></i>
-              <span class="device-name">{{ device.vr_name || device.device_id }}</span>
-              <button 
-                class="remove-device-btn" 
-                @click.stop="emit('remove-device', device.id)"
-                title="Remove device"
+          <transition name="dropdown">
+            <div v-if="devicesExpanded" class="device-list">
+              <div 
+                v-for="device in devices" 
+                :key="device.id"
+                class="device-item"
+                :class="{ 'active': selectedDeviceId === device.id }"
+                @click="emit('select-device', device.id)"
               >
-                <i class="mdi mdi-close"></i>
+                <i class="mdi mdi-virtual-reality"></i>
+                <span class="device-name">{{ device.vr_name || device.device_id }}</span>
+                <button 
+                  class="remove-device-btn" 
+                  @click.stop="emit('remove-device', device.id)"
+                  title="Remove device"
+                >
+                  <i class="mdi mdi-close"></i>
+                </button>
+              </div>
+              
+              <button class="add-device-btn" @click="emit('add-device')">
+                <i class="mdi mdi-plus"></i>
+                <span>Add Device</span>
               </button>
             </div>
-            
-            <button class="add-device-btn" @click="emit('add-device')">
-              <i class="mdi mdi-plus"></i>
-              <span>Add Device</span>
-            </button>
-          </div>
+          </transition>
           
           <div class="device-divider"></div>
         </div>
@@ -129,6 +138,7 @@
             @option-click="handleOptionClick"
             @edit-vr-name="handleEditVrName"
             @logout="handleLogout"
+            @manage-tags="handleManageTags"
           />
         </transition>
       </div>
@@ -197,6 +207,7 @@ const emit = defineEmits<{
   (e: 'view-details', memberId: string): void
   (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
   (e: 'edit-vr-name'): void
+  (e: 'manage-tags'): void
   // Superadmin events
   (e: 'select-device', deviceId: number): void
   (e: 'add-device'): void
@@ -220,6 +231,7 @@ const sidebarMode = ref<'members' | 'options'>('members')
 
 const mobileOpen = ref(false)
 const isMobile = ref(false)
+const devicesExpanded = ref(true) // State for device dropdown
 
 // ─────────────────────────────────────────────────────────────
 // COMPUTED
@@ -327,6 +339,13 @@ const handleOptionClick = (option: { id: string; label: string }) => {
 
 const handleEditVrName = () => {
   emit('edit-vr-name')
+  if (isMobile.value) {
+    closeMobile()
+  }
+}
+
+const handleManageTags = () => {
+  emit('manage-tags')
   if (isMobile.value) {
     closeMobile()
   }
@@ -680,19 +699,40 @@ onUnmounted(() => {
   opacity: 0;
 }
 
+// Dropdown transition for device list
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.dropdown-enter-to,
+.dropdown-leave-from {
+  max-height: 500px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 // ─────────────────────────────────────────────────────────────
 // SUPERADMIN DEVICE SELECTOR
 // ─────────────────────────────────────────────────────────────
 
 .device-selector {
   padding: 0 $space-4;
-  margin-bottom: $space-4;
+  margin-bottom: 0;
 }
 
 .device-header {
   display: flex;
   align-items: center;
-  gap: $space-2;
+  justify-content: space-between;
   padding: $space-2 $space-3;
   margin-bottom: $space-3;
   background: linear-gradient(135deg, #6366f1, #8b5cf6);
@@ -700,9 +740,28 @@ onUnmounted(() => {
   color: white;
   font-size: $text-body-sm;
   font-weight: $font-weight-semibold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
 
-  i {
-    font-size: 18px;
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  .device-header-content {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+
+    i {
+      font-size: 18px;
+    }
+  }
+
+  .toggle-icon {
+    font-size: 20px;
+    transition: transform 0.3s ease;
   }
 }
 
