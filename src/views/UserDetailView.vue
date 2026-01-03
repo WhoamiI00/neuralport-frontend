@@ -514,7 +514,7 @@ const handleLogout = () => {
   if (superadminStore.isAuthenticated) {
     superadminStore.logout()
   } else {
-    authStore.logout()
+    authStore.signOut()
   }
   router.push('/login')
 }
