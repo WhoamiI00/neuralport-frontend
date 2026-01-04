@@ -10,6 +10,7 @@ interface User {
   vr_name?: string
   tenant_id: string
   is_admin?: boolean
+  tags?: any[]
 }
 
 export const useAuthStore = defineStore('auth', () => {

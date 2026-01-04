@@ -35,6 +35,18 @@
         />
       </div>
 
+      <div v-if="userTags && userTags.length > 0" class="form-group">
+        <label>Your Tags</label>
+        <div class="tags-display">
+          <TagBadge
+            v-for="tag in userTags"
+            :key="tag.id"
+            :tag="tag"
+            :removable="false"
+          />
+        </div>
+      </div>
+
       <div v-if="message" :class="['message', messageType]">
         {{ message }}
       </div>
@@ -53,9 +65,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import TagBadge from '../components/zen/TagBadge.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -63,6 +76,8 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
+
+const userTags = computed(() => authStore.user?.tags || [])
 
 async function handleSignOut() {
   try {
@@ -97,6 +112,13 @@ function showMessage(msg: string, type: 'success' | 'error') {
   background-color: #f5f5f5;
   padding: 30px;
   border-radius: 8px;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .form-group {

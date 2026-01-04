@@ -38,6 +38,13 @@ export interface DeviceUser {
   device_id?: string
   device_name?: string
   tenant_id?: number
+  tags?: Array<{
+    id: number
+    name: string
+    category?: string
+    color: string
+    description?: string
+  }>
 }
 
 export interface DashboardStats {
@@ -77,6 +84,7 @@ export const useSuperadminStore = defineStore('superadmin', () => {
   function initialize() {
     const savedToken = localStorage.getItem('superadmin_token')
     const savedSuperadmin = localStorage.getItem('superadmin_user')
+    const savedDeviceId = localStorage.getItem('superadmin_selected_device')
     
     if (savedToken && savedSuperadmin) {
       token.value = savedToken
@@ -86,6 +94,11 @@ export const useSuperadminStore = defineStore('superadmin', () => {
         localStorage.removeItem('superadmin_token')
         localStorage.removeItem('superadmin_user')
       }
+    }
+    
+    // Restore selected device
+    if (savedDeviceId) {
+      selectedDeviceId.value = parseInt(savedDeviceId, 10)
     }
     
     loading.value = false
@@ -165,6 +178,7 @@ export const useSuperadminStore = defineStore('superadmin', () => {
     
     localStorage.removeItem('superadmin_token')
     localStorage.removeItem('superadmin_user')
+    localStorage.removeItem('superadmin_selected_device')
   }
 
   // Fetch current superadmin info
@@ -379,6 +393,13 @@ export const useSuperadminStore = defineStore('superadmin', () => {
   // Select a device
   function selectDevice(deviceId: number | null) {
     selectedDeviceId.value = deviceId
+    
+    // Persist to localStorage
+    if (deviceId !== null) {
+      localStorage.setItem('superadmin_selected_device', String(deviceId))
+    } else {
+      localStorage.removeItem('superadmin_selected_device')
+    }
   }
 
   return {

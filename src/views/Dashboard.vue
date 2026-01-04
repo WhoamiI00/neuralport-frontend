@@ -57,6 +57,8 @@
               <MemberSummaryCard
                 :member="selectedMember"
                 :summary="selectedMemberDashboard.summary"
+                :is-superadmin="isSuperadmin"
+                :is-admin="isAdmin"
                 @close="handleMemberDeselect"
                 @view-details="navigateToUserDetails"
                 @update-member="handleUpdateMember"
@@ -276,8 +278,9 @@
         </div>
       </Transition>
 
-      <!-- Tag Manager Modal -->
+      <!-- Tag Manager Modal - only for admins, not superadmins or regular users -->
       <TagManager 
+        v-if="isAdmin && !isSuperadmin"
         v-model:visible="showTagManager"
         @refresh="handleTagsChanged"
       />
@@ -738,7 +741,8 @@ export default defineComponent({
                     id: String(u.id),
                     name: u.name || u.username || `User ${u.id}`,
                     avatarUrl: u.portrait_image || null,
-                    tenantId: u.tenant_id
+                    tenantId: u.tenant_id,
+                    tags: u.tags || []
                 }))
                 
                 // Update global stats
@@ -775,13 +779,17 @@ export default defineComponent({
                 
                 // Transform device users to members format for sidebar
                 const deviceUsers = this.superadminStore.deviceUsers[deviceId] || []
-                this.members = deviceUsers.map(u => ({
-                    id: String(u.id),
-                    name: u.name || u.username || `User ${u.id}`,
-                    avatarUrl: u.portrait_image || null,
-                    tenantId: u.tenant_id,
-                    tags: u.tags || []
-                }))
+                this.members = deviceUsers.map(u => {
+                    // Filter out null/invalid tags
+                    const validTags = (u.tags || []).filter(tag => tag && tag.id && typeof tag.id === 'number')
+                    return {
+                        id: String(u.id),
+                        name: u.name || u.username || `User ${u.id}`,
+                        avatarUrl: u.portrait_image || null,
+                        tenantId: u.tenant_id,
+                        tags: validTags
+                    }
+                })
             } catch (e) {
                 console.error('Failed to refresh members:', e)
             }
@@ -790,6 +798,8 @@ export default defineComponent({
         async handleSelectDevice(deviceId) {
             this.selectedDeviceId = deviceId
             this.selectedMemberId = null
+            // Persist selection to store (which saves to localStorage)
+            this.superadminStore.selectDevice(deviceId)
             await this.loadSuperadminDeviceData(deviceId)
             await this.refreshChartWithNewData()
         },
@@ -1319,9 +1329,16 @@ export default defineComponent({
                 await this.superadminStore.fetchDashboard()
                 await this.superadminStore.fetchDevices()
                 
-                // Auto-select first device if available
-                if (this.superadminDevices.length > 0) {
+                // Use persisted device ID if available and valid, otherwise select first device
+                const persistedDeviceId = this.superadminStore.selectedDeviceId
+                const validDevice = persistedDeviceId && this.superadminDevices.some(d => d.id === persistedDeviceId)
+                
+                if (validDevice) {
+                    this.selectedDeviceId = persistedDeviceId
+                    await this.loadSuperadminDeviceData(this.selectedDeviceId)
+                } else if (this.superadminDevices.length > 0) {
                     this.selectedDeviceId = this.superadminDevices[0].id
+                    this.superadminStore.selectDevice(this.selectedDeviceId)
                     await this.loadSuperadminDeviceData(this.selectedDeviceId)
                 } else {
                     // No devices yet - show empty state

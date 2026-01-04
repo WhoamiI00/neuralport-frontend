@@ -27,11 +27,12 @@
           <p class="pin" v-if="member.pin">PIN: {{ member.pin }}</p>
           <p class="sessions">{{ formattedSessions }}</p>
           
-          <!-- Tag Selector for Admin -->
+          <!-- Tag Selector - readonly for regular users, editable for admins -->
           <div class="tags-section">
             <TagSelector 
               :user-id="parseInt(member.id)" 
               :model-value="member.tags || []"
+              :readonly="!isAdmin && !isSuperadmin"
               @tags-updated="handleTagsUpdated"
             />
           </div>
@@ -110,6 +111,8 @@ import TagSelector from './TagSelector.vue'
 interface Props {
   member: Member
   summary: MemberSummary & { latestScoreDate?: string | null }
+  isSuperadmin?: boolean
+  isAdmin?: boolean
 }
 
 const props = defineProps<Props>()
@@ -123,6 +126,10 @@ const emit = defineEmits<{
 
 const { isDark } = useTheme()
 const { t } = useLanguage()
+
+// Access props for admin/superadmin status
+const isAdmin = computed(() => props.isAdmin === true)
+const isSuperadmin = computed(() => props.isSuperadmin === true)
 
 // Edit modal state
 const showEditModal = ref(false)

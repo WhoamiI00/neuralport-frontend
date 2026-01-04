@@ -334,10 +334,21 @@ export async function deleteTag(tagId: number): Promise<void> {
   await handleApiResponse(response)
 }
 
-export async function getTagSuggestions(query: string = ''): Promise<Tag[]> {
-  const url = query 
-    ? `${API_BASE_URL}/api/admin/tags/suggestions?q=${encodeURIComponent(query)}`
-    : `${API_BASE_URL}/api/admin/tags/suggestions`
+export async function getTagSuggestions(query: string = '', userId?: number): Promise<Tag[]> {
+  let url = `${API_BASE_URL}/api/admin/tags/suggestions`
+  const params = new URLSearchParams()
+  
+  if (query) {
+    params.append('q', query)
+  }
+  if (userId) {
+    params.append('user_id', userId.toString())
+  }
+  
+  const queryString = params.toString()
+  if (queryString) {
+    url += `?${queryString}`
+  }
   
   const response = await fetch(url, {
     headers: getAuthHeaders(),

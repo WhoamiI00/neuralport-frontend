@@ -1132,7 +1132,7 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
       borderColor: isDark.value ? '#334155' : '#E2E8F0',
       textStyle: { color: isDark.value ? '#F1F5F9' : '#1E293B' }
     },
-    grid: { top: 40, right: 30, bottom: 40, left: 60 },
+    grid: { top: 40, right: 70, bottom: 40, left: 60 },
     xAxis: {
       type: 'category',
       data: timeLabels,

@@ -5,11 +5,11 @@
         v-for="tag in selectedTags"
         :key="tag.id"
         :tag="tag"
-        removable
+        :removable="!readonly"
         @remove="handleRemoveTag"
       />
       <el-button
-        v-if="!showInput"
+        v-if="!showInput && !readonly"
         type="primary"
         size="small"
         text
@@ -48,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getTagSuggestions, createTag, assignTagsToUser, removeTagFromUser, type Tag } from '@/lib/api'
@@ -57,10 +57,12 @@ import TagBadge from './TagBadge.vue'
 interface Props {
   userId: number
   modelValue?: Tag[]
+  readonly?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  modelValue: () => []
+  modelValue: () => [],
+  readonly: false
 })
 
 const emit = defineEmits<{
@@ -106,20 +108,33 @@ const selectedTags = computed({
   }
 })
 
-// Load all tags on mount
-loadAllTags()
+// Load all tags on mount (only if not readonly)
+onMounted(() => {
+  if (!props.readonly) {
+    loadAllTags()
+  }
+})
 
 async function loadAllTags() {
+  // Don't load if readonly
+  if (props.readonly) return
+  
   try {
-    allTags.value = await getTagSuggestions('')
+    allTags.value = await getTagSuggestions('', props.userId)
   } catch (error: any) {
     console.error('Error loading tags:', error)
   }
 }
 
 async function querySearch(queryString: string, cb: (results: any[]) => void) {
+  // Don't fetch suggestions in readonly mode
+  if (props.readonly) {
+    cb([])
+    return
+  }
+  
   try {
-    const suggestions = await getTagSuggestions(queryString.trim())
+    const suggestions = await getTagSuggestions(queryString.trim(), props.userId)
     
     // Filter out already selected tags
     const available = suggestions.filter(

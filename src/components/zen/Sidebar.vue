@@ -121,6 +121,7 @@
             :members="members"
             :selected-member-id="selectedMemberId"
             :is-admin="isAdmin"
+            :is-superadmin="isSuperadmin"
             @select-member="handleMemberSelect"
             @view-details="handleViewDetails"
             @create-user="handleCreateUser"
@@ -549,9 +550,28 @@ onUnmounted(() => {
 
 .sidebar-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--zen-border-glass);
+    border-radius: 3px;
+    
+    &:hover {
+      background: var(--zen-text-muted);
+    }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

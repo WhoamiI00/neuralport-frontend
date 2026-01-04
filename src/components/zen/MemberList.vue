@@ -9,7 +9,7 @@
     </div>
 
     <!-- Tag Filter -->
-    <div v-if="isAdmin && allTags.length > 0" class="tag-filter">
+    <div v-if="isAdmin || isSuperadmin" class="tag-filter">
       <div class="filter-label">
         <i class="mdi mdi-filter-variant"></i>
         <span>Filter by Tags</span>
@@ -20,7 +20,8 @@
         filterable
         collapse-tags
         collapse-tags-tooltip
-        placeholder="Search tags to filter..."
+        :placeholder="allTags.length > 0 ? 'Search tags to filter...' : 'No tags available'"
+        :disabled="allTags.length === 0"
         size="default"
         clearable
         class="tag-filter-select"
@@ -88,11 +89,13 @@ interface Props {
   members: Member[]
   selectedMemberId?: string | null
   isAdmin?: boolean
+  isSuperadmin?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedMemberId: null,
-  isAdmin: false
+  isAdmin: false,
+  isSuperadmin: false
 })
 
 // Computed: Extract all existing PINs from members
@@ -115,13 +118,20 @@ const selectedTagIds = ref<number[]>([])
 // Get all unique tags from members
 const allTags = computed(() => {
   const tagMap = new Map<number, Tag>()
+  
   props.members.forEach(member => {
-    member.tags?.forEach(tag => {
-      if (!tagMap.has(tag.id)) {
+    if (!member.tags || !Array.isArray(member.tags)) {
+      return
+    }
+    
+    member.tags.forEach((tag) => {
+      // Skip null/undefined/invalid tags
+      if (tag && tag.id && typeof tag.id === 'number' && !tagMap.has(tag.id)) {
         tagMap.set(tag.id, tag)
       }
     })
   })
+  
   return Array.from(tagMap.values()).sort((a, b) => a.name.localeCompare(b.name))
 })
 
@@ -135,7 +145,7 @@ const filteredMembers = computed(() => {
     if (!member.tags || member.tags.length === 0) return false
     
     // Member must have at least one of the selected tags
-    return member.tags.some(tag => selectedTagIds.value.includes(tag.id))
+    return member.tags.some(tag => tag && tag.id && selectedTagIds.value.includes(tag.id))
   })
 })
 

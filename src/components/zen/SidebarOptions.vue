@@ -192,6 +192,27 @@ const handleOptionClick = (option: OptionItem) => {
   display: flex;
   flex-direction: column;
   padding: $space-3;
+  min-height: 0; // Allow flex child to shrink and enable scrolling
+  overflow-y: auto;
+  overflow-x: hidden;
+  
+  // Custom scrollbar styling
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--zen-border-glass);
+    border-radius: 3px;
+    
+    &:hover {
+      background: var(--zen-text-muted);
+    }
+  }
 }
 
 .options-header {
