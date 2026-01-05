@@ -164,10 +164,11 @@ async function handleSelectTag(item: any) {
 
     // If it's a new tag (not in system), create it first
     if (item._isNew) {
-      console.log('[TagSelector] Creating new tag:', item.name)
+      console.log('[TagSelector] Creating new tag:', item.name, 'for user:', props.userId)
       tag = await createTag({
         name: item.name,
-        color: item.color
+        color: item.color,
+        user_id: props.userId  // Pass userId so backend knows which tenant
       })
       allTags.value.push(tag)
       ElMessage.success(`Created new tag "${tag.name}"`)

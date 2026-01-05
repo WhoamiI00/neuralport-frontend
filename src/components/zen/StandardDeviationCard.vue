@@ -140,7 +140,7 @@ const trendPoints = computed(() => {
   @media (min-width: $breakpoint-md) {
     border-left: 1px solid var(--zen-border-glass);
     border-right: 1px solid var(--zen-border-glass);
-    border-radius: $radius-2xl;
+    border-radius: 0;
     margin-bottom: 0;
   }
 

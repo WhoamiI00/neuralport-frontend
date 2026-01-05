@@ -1,0 +1,2026 @@
+<template>
+  <div class="user-detail-panel" :class="{ 'dark-mode': isDark }">
+    <!-- Close Button -->
+    <button class="close-panel-btn" @click="$emit('close')" title="Close">
+      <i class="mdi mdi-close"></i>
+    </button>
+
+    <!-- Edit Button -->
+    <button class="edit-panel-btn" @click="openEditModal" title="Edit Member">
+      <i class="mdi mdi-pencil"></i>
+    </button>
+
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <div class="loader">
+        <i class="mdi mdi-loading mdi-spin"></i>
+        <span>Loading user data...</span>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="error" class="error-container">
+      <i class="mdi mdi-alert-circle"></i>
+      <h3>Unable to load user</h3>
+      <p>{{ error }}</p>
+      <el-button type="primary" @click="fetchUserData">Retry</el-button>
+    </div>
+
+    <!-- Main Content -->
+    <main v-else-if="userData" class="details-content">
+      <!-- User Profile Section with Metrics -->
+      <section class="profile-section">
+        <div class="profile-row">
+          <!-- User Info Card -->
+          <div class="profile-card">
+            <div class="profile-avatar">
+              <img v-if="userData.avatar" :src="userData.avatar" :alt="userData.name" />
+              <span v-else class="avatar-initials">{{ getInitials(userData.name) }}</span>
+            </div>
+            <div class="profile-info">
+              <h1 class="user-name">{{ userData.name }}</h1>
+              <p class="user-id">PIN: {{ userData.pin }}</p>
+              <div class="profile-tags">
+                <el-tag size="small" v-if="userData.role">{{ userData.role }}</el-tag>
+                <el-tag size="small" type="info">{{ userData.sessionCount || 0 }} Sessions</el-tag>
+              </div>
+              <!-- User Tags Section -->
+              <div class="user-tags-section">
+                <TagSelector 
+                  v-if="canEditTags"
+                  :user-id="parseInt(userId)" 
+                  :model-value="userData.tags || []"
+                  :readonly="false"
+                  @tags-updated="handleTagsUpdated"
+                />
+                <div v-else-if="userData.tags && userData.tags.length > 0" class="tags-display">
+                  <TagBadge
+                    v-for="tag in userData.tags"
+                    :key="tag.id"
+                    :tag="tag"
+                    :removable="false"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Performance Metrics Cards -->
+          <div class="metrics-row">
+            <FatigueScoreCard
+              :score="userData.latestScore"
+              :is-dark="isDark"
+              :latest-date="userData.latestScoreDate"
+            />
+            <AverageScoreCard
+              :score="userData.avgScore"
+              :is-dark="isDark"
+            />
+            <StandardDeviationCard
+              :value="userData.standardDeviation"
+              :trend-data="variabilityTrendData"
+              :is-dark="isDark"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Section -->
+      <section class="charts-section">
+        <!-- Fatigue Timeline (Full Width) -->
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3>
+              <i class="mdi mdi-chart-line"></i>
+              Fatigue Score Timeline
+            </h3>
+            <!-- Date Navigator with Day/Week/Month Toggle -->
+            <div class="date-navigator">
+              <div class="date-picker-group">
+                <button class="nav-arrow" @click="navigateFatigueDate(-1)">
+                  <i class="mdi mdi-chevron-left"></i>
+                </button>
+                <span class="current-date">{{ formattedFatigueDate }}</span>
+                <button class="nav-arrow" @click="navigateFatigueDate(1)">
+                  <i class="mdi mdi-chevron-right"></i>
+                </button>
+              </div>
+              <div class="view-toggle">
+                <button 
+                  :class="['toggle-btn', { active: fatigueViewMode === 'day' }]" 
+                  @click="fatigueViewMode = 'day'"
+                >Day</button>
+                <button 
+                  :class="['toggle-btn', { active: fatigueViewMode === 'week' }]" 
+                  @click="fatigueViewMode = 'week'"
+                >Week</button>
+                <button 
+                  :class="['toggle-btn', { active: fatigueViewMode === 'month' }]" 
+                  @click="fatigueViewMode = 'month'"
+                >Month</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-body">
+            <ChartCard :option="fatigueTimelineOption" :style="{ height: '350px' }" />
+          </div>
+        </div>
+
+        <!-- Load More Button -->
+        <div v-if="!showMoreContent" class="load-more-section">
+          <button 
+            class="load-more-btn" 
+            @click="loadMoreContent"
+            :disabled="loadingMoreContent"
+          >
+            <i v-if="loadingMoreContent" class="mdi mdi-loading mdi-spin"></i>
+            <i v-else class="mdi mdi-chevron-down"></i>
+            {{ loadingMoreContent ? 'Loading...' : 'Load More Details' }}
+          </button>
+        </div>
+
+        <!-- Additional Charts (Lazy Loaded) -->
+        <template v-if="showMoreContent">
+        <!-- Blink Duration Analysis - Full Width -->
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3>
+              <i class="mdi mdi-eye"></i>
+              Blink Duration Analysis
+            </h3>
+            <div class="date-navigator">
+              <div class="date-picker-group">
+                <button class="nav-arrow" @click="navigateBlinkDate(-1)">
+                  <i class="mdi mdi-chevron-left"></i>
+                </button>
+                <span class="current-date">{{ formattedBlinkDate }}</span>
+                <button class="nav-arrow" @click="navigateBlinkDate(1)">
+                  <i class="mdi mdi-chevron-right"></i>
+                </button>
+              </div>
+              <div class="view-toggle">
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'day' }]"
+                  @click="blinkViewMode = 'day'"
+                >Day</button>
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'week' }]"
+                  @click="blinkViewMode = 'week'"
+                >Week</button>
+                <button 
+                  :class="['toggle-btn', { active: blinkViewMode === 'month' }]"
+                  @click="blinkViewMode = 'month'"
+                >Month</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-body">
+            <ChartCard :option="blinkDurationOption" :style="{ height: '320px' }" />
+          </div>
+        </div>
+
+        <!-- Pupil Size Tracking - Full Width -->
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3>
+              <i class="mdi mdi-circle-half-full"></i>
+              Pupil Size Tracking
+            </h3>
+            <div class="date-navigator">
+              <div class="date-picker-group">
+                <button class="nav-arrow" @click="navigatePupilDate(-1)">
+                  <i class="mdi mdi-chevron-left"></i>
+                </button>
+                <span class="current-date">{{ formattedPupilDate }}</span>
+                <button class="nav-arrow" @click="navigatePupilDate(1)">
+                  <i class="mdi mdi-chevron-right"></i>
+                </button>
+              </div>
+              <div class="view-toggle">
+                <button 
+                  :class="['toggle-btn', { active: pupilViewMode === 'day' }]" 
+                  @click="pupilViewMode = 'day'"
+                >Day</button>
+                <button 
+                  :class="['toggle-btn', { active: pupilViewMode === 'week' }]" 
+                  @click="pupilViewMode = 'week'"
+                >Week</button>
+                <button 
+                  :class="['toggle-btn', { active: pupilViewMode === 'month' }]" 
+                  @click="pupilViewMode = 'month'"
+                >Month</button>
+              </div>
+            </div>
+          </div>
+          <div class="chart-body pupil-chart">
+            <ChartCard :option="pupilSizeOption" :style="{ height: '380px' }" />
+          </div>
+        </div>
+        </template>
+      </section>
+
+      <!-- Session History Section (Lazy Loaded) -->
+      <section v-if="showMoreContent" class="sessions-section">
+        <div class="sessions-card">
+          <div class="card-header">
+            <h3>
+              <i class="mdi mdi-history"></i>
+              Session History
+            </h3>
+            <el-input
+              v-model="sessionSearch"
+              placeholder="Search sessions..."
+              :prefix-icon="Search"
+              clearable
+              class="search-input"
+            />
+          </div>
+          <div class="sessions-table-wrapper">
+            <el-table
+              :data="paginatedSessions"
+              stripe
+              :empty-text="sessionSearch ? 'No sessions found' : 'No session history'"
+              class="sessions-table"
+            >
+              <el-table-column prop="sessionId" label="Session ID" min-width="140">
+                <template #default="{ row }">
+                  <span class="session-id">{{ row.sessionId }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="date" label="Date" min-width="130" sortable>
+                <template #default="{ row }">
+                  {{ formatDateTime(row.date) }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="fatigueScore" label="Fatigue Score" width="130" align="center" sortable>
+                <template #default="{ row }">
+                  <span class="score-badge" :class="getScoreClass(row.fatigueScore)">
+                    {{ row.fatigueScore }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="Status" width="110" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.status)" size="small">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+          <div class="sessions-pagination" v-if="totalSessionPages > 1">
+            <el-pagination
+              v-model:current-page="currentSessionPage"
+              :page-size="sessionsPerPage"
+              :total="filteredSessions.length"
+              layout="prev, pager, next"
+              :pager-count="5"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Insights Section (Lazy Loaded) -->
+      <section class="insights-section" v-if="showMoreContent && userData.insights && userData.insights.length > 0">
+        <div class="section-header">
+          <h2>
+            <i class="mdi mdi-lightbulb-on"></i>
+            AI Insights & Recommendations
+          </h2>
+        </div>
+        <div class="insights-grid">
+          <div 
+            v-for="insight in userData.insights" 
+            :key="insight.id"
+            class="insight-card"
+            :class="insight.severity"
+          >
+            <div class="insight-icon">
+              <i :class="getInsightIcon(insight.type)"></i>
+            </div>
+            <div class="insight-content">
+              <h4>{{ insight.title }}</h4>
+              <p>{{ insight.description }}</p>
+            </div>
+            <div class="insight-badge">
+              {{ insight.severity }}
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Edit Member Modal -->
+    <EditMemberModal
+      v-model="showEditModal"
+      :member="memberForEdit"
+      @update-member="handleUpdateMember"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue'
+import { Search } from '@element-plus/icons-vue'
+import { useTheme } from '@/composables/useTheme'
+import { useAuthStore } from '@/stores/auth'
+import { useSuperadminStore } from '@/stores/superadmin'
+import { getUser, listScores, listStorageAvg } from '@/lib/api'
+import type { EChartsOption } from 'echarts'
+import {
+  format, startOfDay, endOfDay, startOfWeek, endOfWeek, 
+  startOfMonth, endOfMonth
+} from 'date-fns'
+
+// Components
+import ChartCard from './ChartCard.vue'
+import FatigueScoreCard from './FatigueScoreCard.vue'
+import AverageScoreCard from './AverageScoreCard.vue'
+import StandardDeviationCard from './StandardDeviationCard.vue'
+import TagSelector from './TagSelector.vue'
+import TagBadge from './TagBadge.vue'
+import EditMemberModal from './EditMemberModal.vue'
+
+interface Props {
+  userId: string
+  isAdmin?: boolean
+  isSuperadmin?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  isAdmin: false,
+  isSuperadmin: false
+})
+
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'tags-updated'): void
+  (e: 'member-updated', data: { id: string; username: string; avatar: File | null; avatarUrl: string | null }): void
+}>()
+
+const { isDark } = useTheme()
+const authStore = useAuthStore()
+const superadminStore = useSuperadminStore()
+
+// State
+const loading = ref(true)
+const error = ref<string | null>(null)
+const userData = ref<any>(null)
+const allScoresData = ref<any[]>([])
+const sessionSearch = ref('')
+const currentSessionPage = ref(1)
+const sessionsPerPage = 10
+
+// Edit modal state
+const showEditModal = ref(false)
+
+const openEditModal = () => {
+  showEditModal.value = true
+}
+
+// Member object for EditMemberModal
+const memberForEdit = computed(() => ({
+  id: props.userId,
+  name: userData.value?.name || '',
+  avatarUrl: userData.value?.avatar || null,
+  pin: userData.value?.pin || ''
+}))
+
+const handleUpdateMember = async (memberData: { id: string; username: string; avatar: File | null; avatarUrl: string | null }) => {
+  // Emit to parent first - parent will handle API calls
+  emit('member-updated', memberData)
+}
+
+// Method to refresh data (can be called by parent after API update)
+const refreshData = async () => {
+  await fetchUserData()
+}
+
+// Expose refresh method to parent
+defineExpose({ refreshData })
+
+// View mode states
+const fatigueViewMode = ref<'day' | 'week' | 'month'>('month')
+const fatigueSelectedDate = ref(new Date())
+const blinkViewMode = ref<'day' | 'week' | 'month'>('month')
+const blinkSelectedDate = ref(new Date())
+const pupilViewMode = ref<'day' | 'week' | 'month'>('month')
+const pupilSelectedDate = ref(new Date())
+
+// Lazy loading state for additional content
+const showMoreContent = ref(false)
+const loadingMoreContent = ref(false)
+const storageDataLoaded = ref(false)
+
+const loadMoreContent = async () => {
+  loadingMoreContent.value = true
+  
+  try {
+    // Fetch storage avg data if not already loaded
+    if (!storageDataLoaded.value) {
+      await fetchStorageAvgData()
+    }
+    showMoreContent.value = true
+  } catch (err) {
+    console.error('Error loading more content:', err)
+  } finally {
+    loadingMoreContent.value = false
+  }
+}
+
+// Fetch storage average data for blink/pupil charts
+async function fetchStorageAvgData() {
+  if (!props.userId) return
+  
+  try {
+    let tenantId: number
+    if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
+      tenantId = superadminStore.selectedDeviceId
+    } else {
+      tenantId = parseInt(authStore.user?.tenant_id || '1')
+    }
+    
+    const currentUserId = parseInt(props.userId)
+    const storageAverages = await listStorageAvg(tenantId, currentUserId)
+    
+    // Create storage avg map
+    const storageAvgMap = new Map(storageAverages.map(avg => [avg.key, avg]))
+    
+    // Merge with existing scores data
+    allScoresData.value = allScoresData.value.map((score: any) => {
+      const storageAvg = storageAvgMap.get(score.key)
+      return {
+        ...score,
+        leftPupilSize: storageAvg?.leftPupilSize || 0,
+        rightPupilSize: storageAvg?.rightPupilSize || 0,
+        leftBlinkDuration: storageAvg?.leftBlinkDuration || 0,
+        rightBlinkDuration: storageAvg?.rightBlinkDuration || 0,
+        leftMA: storageAvg?.leftMA || 0,
+        rightMA: storageAvg?.rightMA || 0
+      }
+    })
+    
+    storageDataLoaded.value = true
+  } catch (err) {
+    console.error('Error fetching storage avg data:', err)
+    throw err
+  }
+}
+
+// Formatted dates
+const formattedFatigueDate = computed(() => {
+  const date = fatigueSelectedDate.value
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  
+  if (fatigueViewMode.value === 'day') {
+    return `${year}/${month}/${day}`
+  } else if (fatigueViewMode.value === 'week') {
+    const startOfWeekDate = new Date(date)
+    startOfWeekDate.setDate(date.getDate() - date.getDay())
+    const endOfWeekDate = new Date(startOfWeekDate)
+    endOfWeekDate.setDate(startOfWeekDate.getDate() + 6)
+    return `${year}/${startOfWeekDate.getMonth() + 1}/${startOfWeekDate.getDate()} - ${endOfWeekDate.getMonth() + 1}/${endOfWeekDate.getDate()}`
+  } else {
+    return `${year}/${month}`
+  }
+})
+
+const formattedBlinkDate = computed(() => {
+  const date = blinkSelectedDate.value
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  
+  if (blinkViewMode.value === 'day') {
+    return `${year}/${month}/${day}`
+  } else if (blinkViewMode.value === 'week') {
+    const startOfWeekDate = new Date(date)
+    startOfWeekDate.setDate(date.getDate() - date.getDay())
+    const endOfWeekDate = new Date(startOfWeekDate)
+    endOfWeekDate.setDate(startOfWeekDate.getDate() + 6)
+    return `${year}/${startOfWeekDate.getMonth() + 1}/${startOfWeekDate.getDate()} - ${endOfWeekDate.getMonth() + 1}/${endOfWeekDate.getDate()}`
+  } else {
+    return `${year}/${month}`
+  }
+})
+
+const formattedPupilDate = computed(() => {
+  const date = pupilSelectedDate.value
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  
+  if (pupilViewMode.value === 'day') {
+    return `${year}/${month}/${day}`
+  } else if (pupilViewMode.value === 'week') {
+    const startOfWeekDate = new Date(date)
+    startOfWeekDate.setDate(date.getDate() - date.getDay())
+    const endOfWeekDate = new Date(startOfWeekDate)
+    endOfWeekDate.setDate(startOfWeekDate.getDate() + 6)
+    return `${year}/${startOfWeekDate.getMonth() + 1}/${startOfWeekDate.getDate()} - ${endOfWeekDate.getMonth() + 1}/${endOfWeekDate.getDate()}`
+  } else {
+    return `${year}/${month}`
+  }
+})
+
+// Navigate date functions
+function navigateFatigueDate(direction: number) {
+  const date = new Date(fatigueSelectedDate.value)
+  if (fatigueViewMode.value === 'day') date.setDate(date.getDate() + direction)
+  else if (fatigueViewMode.value === 'week') date.setDate(date.getDate() + (direction * 7))
+  else date.setMonth(date.getMonth() + direction)
+  fatigueSelectedDate.value = date
+}
+
+function navigateBlinkDate(direction: number) {
+  const date = new Date(blinkSelectedDate.value)
+  if (blinkViewMode.value === 'day') date.setDate(date.getDate() + direction)
+  else if (blinkViewMode.value === 'week') date.setDate(date.getDate() + (direction * 7))
+  else date.setMonth(date.getMonth() + direction)
+  blinkSelectedDate.value = date
+}
+
+function navigatePupilDate(direction: number) {
+  const date = new Date(pupilSelectedDate.value)
+  if (pupilViewMode.value === 'day') date.setDate(date.getDate() + direction)
+  else if (pupilViewMode.value === 'week') date.setDate(date.getDate() + (direction * 7))
+  else date.setMonth(date.getMonth() + direction)
+  pupilSelectedDate.value = date
+}
+
+// Helper functions
+function getInitials(name: string) {
+  if (!name) return '?'
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function formatDateTime(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function getScoreClass(score: number) {
+  if (score < 40) return 'low'
+  if (score < 60) return 'medium'
+  return 'high'
+}
+
+function getStatusType(status: string) {
+  const types: Record<string, any> = {
+    completed: 'success',
+    interrupted: 'warning',
+    pending: 'info'
+  }
+  return types[status] || 'info'
+}
+
+function getInsightIcon(type: string) {
+  const icons: Record<string, string> = {
+    fatigue: 'mdi mdi-brain',
+    blink: 'mdi mdi-eye',
+    performance: 'mdi mdi-trending-up',
+    pattern: 'mdi mdi-chart-timeline-variant'
+  }
+  return icons[type] || 'mdi mdi-information'
+}
+
+// Filter data by date range
+function filterDataByDateRange(data: any[], date: Date, mode: string) {
+  if (!data || data.length === 0) return []
+  
+  let startDate: Date, endDate: Date
+  
+  if (mode === 'day') {
+    startDate = startOfDay(date)
+    endDate = endOfDay(date)
+  } else if (mode === 'week') {
+    startDate = startOfWeek(date, { weekStartsOn: 0 })
+    endDate = endOfWeek(date, { weekStartsOn: 0 })
+  } else {
+    startDate = startOfMonth(date)
+    endDate = endOfMonth(date)
+  }
+  
+  return data.filter(item => {
+    const itemDate = new Date(item.created_at || item.sessionDate)
+    if (isNaN(itemDate.getTime())) return false
+    return itemDate >= startDate && itemDate <= endDate
+  }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+}
+
+// Filtered fatigue data
+const filteredFatigueData = computed(() => {
+  const filtered = filterDataByDateRange(allScoresData.value, fatigueSelectedDate.value, fatigueViewMode.value)
+  
+  if (fatigueViewMode.value === 'day') {
+    return filtered.map(item => ({
+      date: format(new Date(item.created_at), 'HH:mm'),
+      score: Number(item.score || 0)
+    }))
+  } else if (fatigueViewMode.value === 'week') {
+    const dayMap = new Map()
+    filtered.forEach(item => {
+      const dateKey = format(new Date(item.created_at), 'MM/dd')
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0 })
+      const rec = dayMap.get(dateKey)
+      rec.sum += Number(item.score || 0)
+      rec.count += 1
+    })
+    
+    const result = []
+    const start = startOfWeek(fatigueSelectedDate.value, { weekStartsOn: 0 })
+    for (let i = 0; i < 7; i++) {
+      const currentDate = new Date(start)
+      currentDate.setDate(start.getDate() + i)
+      const dateKey = format(currentDate, 'MM/dd')
+      const rec = dayMap.get(dateKey)
+      result.push({
+        date: dateKey,
+        score: rec ? Math.round(rec.sum / rec.count) : 0
+      })
+    }
+    return result
+  } else {
+    const dayMap = new Map()
+    filtered.forEach(item => {
+      const dateKey = format(new Date(item.created_at), 'MM/dd')
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0 })
+      const rec = dayMap.get(dateKey)
+      rec.sum += Number(item.score || 0)
+      rec.count += 1
+    })
+    
+    const datesWithData = Array.from(dayMap.keys()).sort()
+    if (datesWithData.length > 0) {
+      return datesWithData.map(dateKey => {
+        const rec = dayMap.get(dateKey)
+        return { date: dateKey, score: Math.round(rec.sum / rec.count) }
+      })
+    }
+    return []
+  }
+})
+
+// Filtered blink data
+const filteredBlinkData = computed(() => {
+  const filtered = filterDataByDateRange(allScoresData.value, blinkSelectedDate.value, blinkViewMode.value)
+  
+  if (blinkViewMode.value === 'day') {
+    return filtered.map(item => ({
+      time: format(new Date(item.created_at), 'HH:mm'),
+      leftBlinks: item.leftBlinkDuration || 0,
+      rightBlinks: item.rightBlinkDuration || 0
+    }))
+  } else {
+    const dayMap = new Map()
+    filtered.forEach(item => {
+      const dateKey = format(new Date(item.created_at), 'MM/dd')
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { leftSum: 0, rightSum: 0, count: 0 })
+      const rec = dayMap.get(dateKey)
+      rec.leftSum += item.leftBlinkDuration || 0
+      rec.rightSum += item.rightBlinkDuration || 0
+      rec.count += 1
+    })
+    
+    return Array.from(dayMap.entries()).map(([dateKey, rec]: [string, any]) => ({
+      time: dateKey,
+      leftBlinks: Math.round(rec.leftSum / rec.count),
+      rightBlinks: Math.round(rec.rightSum / rec.count)
+    }))
+  }
+})
+
+// Filtered pupil data
+const filteredPupilData = computed(() => {
+  const filtered = filterDataByDateRange(allScoresData.value, pupilSelectedDate.value, pupilViewMode.value)
+  
+  if (pupilViewMode.value === 'day') {
+    return filtered.map(item => ({
+      time: format(new Date(item.created_at), 'HH:mm'),
+      leftPupil: item.leftPupilSize || 0,
+      rightPupil: item.rightPupilSize || 0
+    }))
+  } else {
+    const dayMap = new Map()
+    filtered.forEach(item => {
+      const dateKey = format(new Date(item.created_at), 'MM/dd')
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { leftSum: 0, rightSum: 0, count: 0 })
+      const rec = dayMap.get(dateKey)
+      rec.leftSum += item.leftPupilSize || 0
+      rec.rightSum += item.rightPupilSize || 0
+      rec.count += 1
+    })
+    
+    return Array.from(dayMap.entries()).map(([dateKey, rec]: [string, any]) => ({
+      time: dateKey,
+      leftPupil: Math.round((rec.leftSum / rec.count) * 100) / 100,
+      rightPupil: Math.round((rec.rightSum / rec.count) * 100) / 100
+    }))
+  }
+})
+
+// Sessions
+const filteredSessions = computed(() => {
+  if (!userData.value?.sessions) return []
+  const search = sessionSearch.value.toLowerCase()
+  return userData.value.sessions.filter((s: any) => 
+    !search || s.sessionId?.toLowerCase().includes(search) || s.date?.toLowerCase().includes(search)
+  )
+})
+
+const paginatedSessions = computed(() => {
+  const start = (currentSessionPage.value - 1) * sessionsPerPage
+  return filteredSessions.value.slice(start, start + sessionsPerPage)
+})
+
+const totalSessionPages = computed(() => Math.ceil(filteredSessions.value.length / sessionsPerPage))
+
+// Tag editing permission
+const canEditTags = computed(() => props.isAdmin || props.isSuperadmin)
+
+// Handle tags updated
+const handleTagsUpdated = async () => {
+  // Refresh user data after tags are updated
+  await fetchUserData()
+  emit('tags-updated')
+}
+
+// Variability trend data
+const variabilityTrendData = computed(() => {
+  if (allScoresData.value.length === 0) return [65, 72, 68, 75, 70, 78, 72, 80, 75, 72]
+  return allScoresData.value.slice(-10).map((d: any) => d.score)
+})
+
+// Chart options
+const fatigueTimelineOption = computed<EChartsOption>(() => {
+  const textColor = isDark.value ? '#94A3B8' : '#64748B'
+  const gridColor = isDark.value ? '#334155' : '#E2E8F0'
+  const data = filteredFatigueData.value
+  
+  if (!data || data.length === 0) {
+    return {
+      title: { text: 'No data for selected period', left: 'center', top: 'center', textStyle: { color: textColor, fontSize: 14 } },
+      grid: { top: 20, right: 70, bottom: 50, left: 50 }
+    }
+  }
+  
+  const timeLabels = data.map((d: any) => d.date)
+  const scores = data.map((d: any) => d.score)
+  
+  return {
+    tooltip: { trigger: 'axis', backgroundColor: isDark.value ? '#1E293B' : '#fff', borderColor: gridColor, textStyle: { color: isDark.value ? '#F1F5F9' : '#1E293B' } },
+    grid: { top: 40, right: 70, bottom: 40, left: 60 },
+    xAxis: { type: 'category', data: timeLabels, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, rotate: fatigueViewMode.value === 'month' ? 45 : 0 } },
+    yAxis: { type: 'value', min: 0, max: 100, name: 'Fatigue Score', nameTextStyle: { color: textColor }, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor }, splitLine: { lineStyle: { color: gridColor, type: 'dashed' } } },
+    series: [{
+      type: 'line', data: scores, smooth: true, lineStyle: { width: 3, color: '#667EEA' },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(102, 126, 234, 0.4)' }, { offset: 1, color: 'rgba(102, 126, 234, 0.05)' }] } },
+      itemStyle: { color: '#667EEA' }, symbolSize: 8,
+      markLine: { silent: true, data: [
+        { yAxis: 60, lineStyle: { color: '#F59E0B', type: 'dashed', width: 2 }, label: { formatter: 'Warning', color: '#F59E0B', position: 'end', fontSize: 12 } },
+        { yAxis: 80, lineStyle: { color: '#EF4444', type: 'dashed', width: 2 }, label: { formatter: 'Critical', color: '#EF4444', position: 'end', fontSize: 12 } }
+      ]}
+    }]
+  }
+})
+
+const blinkDurationOption = computed<EChartsOption>(() => {
+  const textColor = isDark.value ? '#94A3B8' : '#64748B'
+  const gridColor = isDark.value ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)'
+  const data = filteredBlinkData.value
+  
+  if (!data || data.length === 0) {
+    return {
+      title: { text: 'No blink data for selected period', left: 'center', top: 'center', textStyle: { color: textColor, fontSize: 14 } },
+      grid: { top: 20, right: 20, bottom: 50, left: 50 }
+    }
+  }
+  
+  const timeLabels = data.map((d: any) => d.time)
+  const leftBlinks = data.map((d: any) => d.leftBlinks)
+  const rightBlinks = data.map((d: any) => d.rightBlinks)
+  
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: isDark.value ? '#1E293B' : '#fff',
+      borderColor: gridColor,
+      formatter: (params: any) => {
+        const dataIndex = params[0].dataIndex
+        const sessionData = data[dataIndex]
+        if (!sessionData) return ''
+        return `${sessionData.time}<br/>Left Eye: ${sessionData.leftBlinks?.toFixed(1) || 0}ms<br/>Right Eye: ${sessionData.rightBlinks?.toFixed(1) || 0}ms`
+      }
+    },
+    legend: {
+      data: ['Left Eye', 'Right Eye'],
+      textStyle: { color: textColor },
+      bottom: 0
+    },
+    grid: { top: 20, right: 20, bottom: 50, left: 60 },
+    xAxis: {
+      type: 'category',
+      data: timeLabels,
+      axisLabel: { color: textColor, rotate: 15 }
+    },
+    yAxis: {
+      type: 'value',
+      name: 'Blink Duration (ms)',
+      nameTextStyle: { color: textColor },
+      axisLabel: { color: textColor },
+      splitLine: { lineStyle: { color: gridColor } }
+    },
+    series: [
+      {
+        name: 'Left Eye',
+        type: 'bar',
+        data: leftBlinks,
+        itemStyle: { color: '#3B82F6', borderRadius: [4, 4, 0, 0] }
+      },
+      {
+        name: 'Right Eye',
+        type: 'bar',
+        data: rightBlinks,
+        itemStyle: { color: '#8B5CF6', borderRadius: [4, 4, 0, 0] }
+      }
+    ]
+  }
+})
+
+// Calculate moving average for pupil data
+function calculateMovingAverage(data: number[], windowSize: number = 3): number[] {
+  const result: number[] = []
+  for (let i = 0; i < data.length; i++) {
+    const start = Math.max(0, i - Math.floor(windowSize / 2))
+    const end = Math.min(data.length, i + Math.ceil(windowSize / 2))
+    const window = data.slice(start, end)
+    const avg = window.reduce((sum, val) => sum + val, 0) / window.length
+    result.push(Math.round(avg * 100) / 100)
+  }
+  return result
+}
+
+const pupilSizeOption = computed<EChartsOption>(() => {
+  const textColor = isDark.value ? '#94A3B8' : '#64748B'
+  const gridColor = isDark.value ? 'rgba(51, 65, 85, 0.5)' : 'rgba(226, 232, 240, 0.8)'
+  const data = filteredPupilData.value
+  
+  if (!data || data.length === 0) {
+    return {
+      title: { text: 'No pupil data for selected period', left: 'center', top: 'center', textStyle: { color: textColor, fontSize: 14 } },
+      grid: { top: 40, right: 30, bottom: 60, left: 60 }
+    }
+  }
+  
+  const timeLabels = data.map((d: any) => d.time)
+  const leftPupilData = data.map((d: any) => d.leftPupil)
+  const rightPupilData = data.map((d: any) => d.rightPupil)
+  
+  // Calculate moving averages
+  const leftMA = calculateMovingAverage(leftPupilData, 3)
+  const rightMA = calculateMovingAverage(rightPupilData, 3)
+  
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: isDark.value ? '#1E293B' : '#FFFFFF',
+      borderColor: isDark.value ? '#334155' : '#E2E8F0',
+      borderWidth: 1,
+      padding: [12, 16],
+      textStyle: { 
+        color: isDark.value ? '#F1F5F9' : '#1E293B',
+        fontSize: 13
+      },
+      formatter: (params: any) => {
+        const time = params[0]?.axisValue || ''
+        let html = `<div style="font-weight: 600; margin-bottom: 8px; color: ${textColor};">${time}</div>`
+        params.forEach((item: any) => {
+          const marker = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${item.color};margin-right:8px;"></span>`
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin:4px 0;">
+            <span>${marker}${item.seriesName}</span>
+            <span style="font-weight:600;">${item.value?.toFixed(2) || 'N/A'} mm</span>
+          </div>`
+        })
+        return html
+      }
+    },
+    legend: {
+      data: ['Left MA', 'Left Pupil', 'Right MA', 'Right Pupil'],
+      textStyle: { 
+        color: textColor,
+        fontSize: 12
+      },
+      itemWidth: 12,
+      itemHeight: 12,
+      itemGap: 24,
+      bottom: 10,
+      left: 'center'
+    },
+    grid: { 
+      top: 40, 
+      right: 30, 
+      bottom: 60, 
+      left: 60,
+      containLabel: true
+    },
+    graphic: [
+      {
+        type: 'text',
+        right: 20,
+        top: 8,
+        style: {
+          text: 'Millimeters (mm)',
+          fill: '#fff',
+          fontSize: 12,
+          fontWeight: 500,
+          backgroundColor: '#818CF8',
+          padding: [6, 12],
+          borderRadius: 6
+        }
+      }
+    ],
+    xAxis: {
+      type: 'category',
+      data: timeLabels,
+      boundaryGap: false,
+      axisLine: { 
+        lineStyle: { 
+          color: gridColor,
+          width: 1
+        } 
+      },
+      axisTick: { show: false },
+      axisLabel: { 
+        color: textColor,
+        fontSize: 11,
+        margin: 12,
+        interval: 0,
+        rotate: pupilViewMode.value === 'month' ? 45 : 0
+      },
+      splitLine: { show: false }
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 6,
+      interval: 1,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { 
+        color: textColor,
+        fontSize: 11,
+        formatter: (value: number) => value.toFixed(1)
+      },
+      splitLine: { 
+        lineStyle: { 
+          color: gridColor,
+          type: 'dashed',
+          width: 1
+        } 
+      }
+    },
+    series: [
+      // Left Moving Average - Dashed trend line (light green)
+      {
+        name: 'Left MA',
+        type: 'line',
+        data: leftMA,
+        smooth: true,
+        symbol: 'none',
+        connectNulls: false,
+        lineStyle: { 
+          color: 'rgba(16, 185, 129, 0.5)', 
+          width: 2,
+          type: 'dashed'
+        },
+        z: 2
+      },
+      // Left Pupil - Solid line (green)
+      {
+        name: 'Left Pupil',
+        type: 'line',
+        data: leftPupilData,
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 8,
+        connectNulls: false,
+        lineStyle: { 
+          color: '#10B981', 
+          width: 2
+        },
+        itemStyle: { 
+          color: '#10B981',
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        z: 3
+      },
+      // Right Moving Average - Dashed trend line (light orange)
+      {
+        name: 'Right MA',
+        type: 'line',
+        data: rightMA,
+        smooth: true,
+        symbol: 'none',
+        connectNulls: false,
+        lineStyle: { 
+          color: 'rgba(245, 158, 11, 0.5)', 
+          width: 2,
+          type: 'dashed'
+        },
+        z: 2
+      },
+      // Right Pupil - Solid line (orange)
+      {
+        name: 'Right Pupil',
+        type: 'line',
+        data: rightPupilData,
+        smooth: false,
+        connectNulls: false,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { 
+          color: '#F59E0B', 
+          width: 2
+        },
+        itemStyle: { 
+          color: '#F59E0B',
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        z: 3
+      }
+    ],
+    animationDuration: 800,
+    animationEasing: 'cubicInOut'
+  }
+})
+
+// Fetch user data
+async function fetchUserData() {
+  if (!props.userId) return
+  
+  loading.value = true
+  error.value = null
+  
+  try {
+    // Get tenant ID
+    let tenantId: number
+    if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
+      tenantId = superadminStore.selectedDeviceId
+    } else {
+      tenantId = parseInt(authStore.user?.tenant_id || '1')
+    }
+    
+    const currentUserId = parseInt(props.userId)
+    
+    // Fetch user and scores in parallel (storage_avg is fetched on "Load More")
+    const [userProfile, scores] = await Promise.all([
+      getUser(currentUserId),
+      listScores(tenantId, currentUserId)
+    ])
+    
+    // Process scores without storage data initially
+    // Storage data (blink/pupil) will be fetched when user clicks "Load More"
+    const scoresWithData = (Array.isArray(scores) ? scores : []).map((score: any) => {
+      return {
+        ...score,
+        leftPupilSize: 0,
+        rightPupilSize: 0,
+        leftBlinkDuration: 0,
+        rightBlinkDuration: 0,
+        leftMA: 0,
+        rightMA: 0,
+        sessionDate: score.created_at
+      }
+    })
+    
+    allScoresData.value = scoresWithData
+    
+    // Calculate stats
+    const validScores = scoresWithData.filter((s: any) => s.score !== null && s.score !== undefined)
+    const avgScore = validScores.length > 0 ? validScores.reduce((sum: number, s: any) => sum + s.score, 0) / validScores.length : 0
+    const latestScore = validScores.length > 0 ? validScores[validScores.length - 1]?.score : 0
+    
+    // Calculate standard deviation
+    let stdDev = 0
+    if (validScores.length > 1) {
+      const variance = validScores.reduce((sum: number, s: any) => sum + Math.pow(s.score - avgScore, 2), 0) / validScores.length
+      stdDev = Math.sqrt(variance)
+    }
+    
+    // Build sessions from scores
+    const sessions = scoresWithData.map((score: any, idx: number) => ({
+      sessionId: score.key || `session-${idx}`,
+      date: score.created_at,
+      fatigueScore: Math.round(score.score),
+      status: 'completed'
+    }))
+    
+    // Generate insights based on data
+    const insights = []
+    if (avgScore >= 70) {
+      insights.push({
+        id: 1,
+        type: 'fatigue',
+        title: 'High Fatigue Detected',
+        description: 'Average fatigue score is above 70. Consider more frequent breaks.',
+        severity: 'warning'
+      })
+    }
+    if (stdDev > 20) {
+      insights.push({
+        id: 2,
+        type: 'pattern',
+        title: 'Inconsistent Patterns',
+        description: 'High variability in fatigue scores suggests irregular work patterns.',
+        severity: 'info'
+      })
+    }
+    
+    // Get latest score date
+    const latestScoreData = validScores.length > 0 ? validScores[validScores.length - 1] : null
+    const latestScoreDate = latestScoreData?.created_at || latestScoreData?.sessionDate || null
+    
+    // Set all chart dates to the latest score's month
+    if (latestScoreDate) {
+      const latestDate = new Date(latestScoreDate)
+      fatigueSelectedDate.value = latestDate
+      blinkSelectedDate.value = latestDate
+      pupilSelectedDate.value = latestDate
+    }
+    
+    userData.value = {
+      id: userProfile.id,
+      name: userProfile.name || `User ${userProfile.pin}`,
+      pin: userProfile.pin,
+      avatar: userProfile.portrait_image,
+      role: 'Player',
+      sessionCount: scoresWithData.length,
+      latestScore: Math.round(latestScore),
+      latestScoreDate: latestScoreDate,
+      avgScore: Math.round(avgScore * 100) / 100,
+      standardDeviation: Math.round(stdDev * 100) / 100,
+      tags: userProfile.tags || [],
+      sessions,
+      insights
+    }
+  } catch (err: any) {
+    console.error('Error fetching user data:', err)
+    error.value = err.message || 'Failed to load user data'
+  } finally {
+    loading.value = false
+  }
+}
+
+// Watch for userId changes
+watch(() => props.userId, () => {
+  if (props.userId) {
+    // Reset lazy loading state when user changes
+    showMoreContent.value = false
+    loadingMoreContent.value = false
+    storageDataLoaded.value = false
+    fetchUserData()
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  fetchUserData()
+})
+</script>
+
+<style lang="scss" scoped>
+@import '@/assets/scss/zen-variables';
+@import '@/assets/scss/responsive';
+
+.user-detail-panel {
+  position: relative;
+  min-height: 400px;
+}
+
+.close-panel-btn {
+  position: absolute;
+  top: $space-3;
+  right: $space-3;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--zen-border-medium);
+  border-radius: $radius-full;
+  background: var(--zen-bg-secondary);
+  color: var(--zen-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  
+  &:hover {
+    background: var(--zen-accent-danger);
+    border-color: var(--zen-accent-danger);
+    color: white;
+  }
+  
+  i { font-size: 22px; }
+}
+
+.edit-panel-btn {
+  position: absolute;
+  top: $space-3;
+  right: 60px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--zen-border-medium);
+  border-radius: $radius-full;
+  background: var(--zen-bg-secondary);
+  color: var(--zen-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  
+  &:hover {
+    background: var(--zen-accent-teal-alpha, rgba(6, 182, 212, 0.15));
+    border-color: var(--zen-accent-teal);
+    color: var(--zen-accent-teal);
+  }
+  
+  i { font-size: 20px; }
+}
+
+.loading-container,
+.error-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: $space-4;
+  padding: $space-4;
+}
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-3;
+
+  i {
+    font-size: 48px;
+    color: var(--zen-accent-teal);
+  }
+
+  span {
+    color: var(--zen-text-secondary);
+    font-size: $text-body-sm;
+  }
+}
+
+.error-container {
+  i {
+    font-size: 64px;
+    color: var(--zen-accent-danger);
+  }
+
+  h3 {
+    color: var(--zen-text-heading);
+    margin: 0;
+    font-size: $text-title-md;
+  }
+
+  p {
+    color: var(--zen-text-muted);
+    text-align: center;
+  }
+}
+
+.details-content {
+  max-width: 100%;
+  padding: 0;
+  position: relative;
+  z-index: 1;
+}
+
+// Profile Section
+.profile-section {
+  margin-bottom: 0;
+}
+
+.profile-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  align-items: stretch;
+  width: 100%;
+
+  @include from-tablet {
+    gap: 0;
+  }
+
+  @include from-desktop {
+    flex-direction: row;
+  }
+}
+
+.profile-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: $space-3;
+  padding: $space-3;
+  background: var(--zen-surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--zen-border-glass);
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0;
+  box-shadow: none;
+  transition: all 0.3s ease;
+  width: 100%;
+
+  @include from-tablet {
+    flex-direction: row;
+    text-align: left;
+    gap: $space-4;
+    padding: $space-3 $space-4;
+    border: 1px solid var(--zen-border-glass);
+    border-radius: 0;
+  }
+
+  @include from-desktop {
+    flex: 0 0 auto;
+    width: 340px;
+    border-radius: 0;
+  }
+}
+
+.metrics-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  width: 100%;
+
+  @include from-tablet {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.profile-avatar {
+  position: relative;
+  flex-shrink: 0;
+
+  img,
+  .avatar-initials {
+    width: 80px;
+    height: 80px;
+    border-radius: $radius-lg;
+    object-fit: cover;
+
+    @include from-tablet {
+      width: 120px;
+      height: 120px;
+      border-radius: $radius-xl;
+    }
+  }
+
+  .avatar-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--zen-accent-teal), var(--zen-accent-peach));
+    color: white;
+    font-size: $text-heading-3;
+    font-weight: $font-weight-bold;
+
+    @include from-tablet {
+      font-size: $text-heading-1;
+    }
+  }
+}
+
+.profile-info {
+  flex: 1;
+
+  .user-name {
+    font-size: $text-heading-4;
+    font-weight: $font-weight-bold;
+    color: var(--zen-text-heading);
+    margin: 0 0 $space-1;
+
+    @include from-tablet {
+      font-size: $text-heading-3;
+    }
+  }
+
+  .user-id {
+    font-size: $text-body-xs;
+    color: var(--zen-text-muted);
+    margin: 0 0 $space-1;
+
+    @include from-tablet {
+      font-size: $text-body-sm;
+    }
+  }
+
+  .profile-tags {
+    display: flex;
+    gap: $space-2;
+    margin-top: $space-2;
+    justify-content: center;
+
+    @include from-tablet {
+      justify-content: flex-start;
+    }
+  }
+
+  .user-tags-section {
+    margin-top: $space-3;
+    padding-top: $space-3;
+    border-top: 1px solid var(--zen-border);
+
+    .tags-display {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $space-2;
+      justify-content: center;
+
+      @include from-tablet {
+        justify-content: flex-start;
+      }
+    }
+  }
+}
+
+// Charts Section
+.charts-section {
+  margin-bottom: 0;
+}
+
+// Load More Section
+.load-more-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 16px;
+  background: var(--zen-surface);
+  border: 1px solid var(--zen-border-glass);
+  border-top: none;
+  border-bottom: none;
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: var(--zen-accent-teal);
+  border: none;
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--zen-accent-teal-dark, #0891b2);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  i {
+    font-size: 18px;
+  }
+}
+
+.chart-card {
+  background: var(--zen-surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--zen-border-glass);
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  border-radius: 0;
+  overflow: hidden;
+  margin-bottom: 0;
+  transition: all 0.3s ease;
+
+  @include from-tablet {
+    border: 1px solid var(--zen-border-glass);
+    border-top: none;
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+
+  &:last-child {
+    @include from-tablet {
+      border-radius: 0;
+    }
+  }
+
+  &.full-width {
+    width: 100%;
+  }
+}
+
+.chart-header {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-bottom: 1px solid var(--zen-border-glass);
+
+  @include from-tablet {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: $space-2 $space-3;
+  }
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: 0;
+    font-size: $text-body-lg;
+    font-weight: $font-weight-semibold;
+    color: var(--zen-text-heading);
+
+    i {
+      color: var(--zen-accent-teal);
+      font-size: 20px;
+    }
+  }
+}
+
+.date-navigator {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  flex-wrap: wrap;
+}
+
+.date-picker-group {
+  display: flex;
+  align-items: center;
+  gap: $space-1;
+  background: var(--zen-accent-teal);
+  border-radius: $radius-full;
+  padding: $space-1;
+}
+
+.nav-arrow {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: $radius-full;
+  background: transparent;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  i {
+    font-size: 20px;
+  }
+}
+
+.current-date {
+  font-size: $text-body-sm;
+  font-weight: $font-weight-medium;
+  color: white;
+  padding: 0 $space-2;
+  min-width: 80px;
+  text-align: center;
+}
+
+.view-toggle {
+  display: flex;
+  background: var(--zen-bg-secondary);
+  border-radius: $radius-full;
+  padding: 3px;
+  border: 1px solid var(--zen-border-light);
+}
+
+.toggle-btn {
+  padding: $space-2 $space-3;
+  border: none;
+  border-radius: $radius-full;
+  background: transparent;
+  color: var(--zen-text-secondary);
+  font-size: $text-body-sm;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: var(--zen-text-primary);
+  }
+
+  &.active {
+    background: var(--zen-accent-teal);
+    color: white;
+    box-shadow: var(--zen-shadow-sm);
+  }
+}
+
+.chart-body {
+  padding: $space-2;
+  min-height: 220px;
+
+  @include from-tablet {
+    padding: $space-2 $space-3;
+  }
+}
+
+// Sessions Section
+.sessions-section {
+  margin-bottom: 0;
+}
+
+.sessions-card {
+  background: var(--zen-surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--zen-border-glass);
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+  overflow: hidden;
+
+  @include from-tablet {
+    border-left: 1px solid var(--zen-border-glass);
+    border-right: 1px solid var(--zen-border-glass);
+    border-radius: $radius-xl;
+  }
+}
+
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border-bottom: 1px solid var(--zen-border-glass);
+
+  @include from-tablet {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: $space-4 $space-5;
+  }
+
+  h3 {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: 0;
+    font-size: $text-body-lg;
+    font-weight: $font-weight-semibold;
+    color: var(--zen-text-heading);
+
+    i {
+      color: var(--zen-accent-teal);
+    }
+  }
+}
+
+.search-input {
+  width: 100%;
+
+  @include from-tablet {
+    width: 200px;
+  }
+}
+
+.sessions-table-wrapper {
+  padding: $space-3;
+  overflow-x: auto;
+
+  @include from-tablet {
+    padding: $space-4;
+  }
+}
+
+// Dark mode styles for Element Plus table
+.dark-mode {
+  .sessions-card {
+    background: var(--zen-surface);
+  }
+
+  :deep(.el-table) {
+    --el-table-bg-color: transparent !important;
+    --el-table-tr-bg-color: transparent !important;
+    --el-table-header-bg-color: rgba(255, 255, 255, 0.05) !important;
+    --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.08) !important;
+    --el-table-text-color: #e2e8f0 !important;
+    --el-table-header-text-color: #94a3b8 !important;
+    --el-table-border-color: rgba(255, 255, 255, 0.1) !important;
+    --el-fill-color-lighter: rgba(255, 255, 255, 0.03) !important;
+    background: transparent !important;
+  }
+
+  :deep(.el-table__inner-wrapper) {
+    background: transparent !important;
+  }
+
+  :deep(.el-table__header-wrapper) {
+    background: transparent !important;
+  }
+
+  :deep(.el-table__header th) {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  :deep(.el-table__header th .cell) {
+    color: #94a3b8 !important;
+  }
+
+  :deep(.el-table__body-wrapper) {
+    background: transparent !important;
+  }
+
+  :deep(.el-table__body tr) {
+    background: transparent !important;
+  }
+
+  :deep(.el-table__body tr:hover > td) {
+    background: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  :deep(.el-table__body td) {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  :deep(.el-table__body td .cell) {
+    color: #e2e8f0 !important;
+  }
+
+  :deep(.el-table--striped .el-table__body tr.el-table__row--striped td) {
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  :deep(.el-table__empty-block) {
+    background: transparent !important;
+    color: #94a3b8 !important;
+  }
+
+  :deep(.el-table__empty-text) {
+    color: #94a3b8 !important;
+  }
+
+  :deep(.el-pagination) {
+    --el-pagination-bg-color: transparent;
+    --el-pagination-text-color: #94a3b8;
+    --el-pagination-button-color: #94a3b8;
+    --el-pagination-hover-color: #06b6d4;
+  }
+
+  :deep(.el-pagination button),
+  :deep(.el-pagination .el-pager li) {
+    background: transparent !important;
+    color: #94a3b8 !important;
+  }
+
+  :deep(.el-pagination .el-pager li.is-active) {
+    color: #06b6d4 !important;
+  }
+
+  // Search input dark mode
+  :deep(.el-input__wrapper) {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1) inset !important;
+  }
+
+  :deep(.el-input__inner) {
+    color: #e2e8f0 !important;
+    
+    &::placeholder {
+      color: #64748b !important;
+    }
+  }
+
+  :deep(.el-input__prefix) {
+    color: #64748b !important;
+  }
+
+  // Table header dark mode - more specific
+  :deep(.el-table__header-wrapper) {
+    background: #1e293b !important;
+  }
+
+  :deep(.el-table__header) {
+    background: #1e293b !important;
+  }
+
+  :deep(.el-table__header tr) {
+    background: #1e293b !important;
+  }
+
+  :deep(.el-table__header th) {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    color: #94a3b8 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  :deep(.el-table thead) {
+    background: #1e293b !important;
+  }
+
+  :deep(.el-table thead th.el-table__cell) {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+    color: #94a3b8 !important;
+  }
+
+  :deep(.el-table th.el-table__cell) {
+    background: #1e293b !important;
+    background-color: #1e293b !important;
+  }
+
+  :deep(.el-table .el-table__cell.is-sortable) {
+    background: #1e293b !important;
+  }
+}
+
+.session-id {
+  font-family: monospace;
+  font-size: $text-body-sm;
+  color: var(--zen-text-secondary);
+}
+
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: $space-1 $space-2;
+  border-radius: $radius-full;
+  font-weight: $font-weight-semibold;
+  font-size: $text-body-sm;
+
+  &.low {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+  }
+
+  &.medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: #F59E0B;
+  }
+
+  &.high {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+  }
+}
+
+.sessions-pagination {
+  display: flex;
+  justify-content: center;
+  padding: $space-4;
+  border-top: 1px solid var(--zen-border-glass);
+}
+
+// Insights Section
+.insights-section {
+  margin-bottom: 0;
+
+  @include from-tablet {
+    margin-bottom: $space-5;
+  }
+}
+
+.section-header {
+  padding: $space-4;
+  padding-bottom: $space-3;
+
+  @include from-tablet {
+    padding: 0 0 $space-4 0;
+  }
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: $space-2;
+    margin: 0;
+    font-size: $text-title-sm;
+    font-weight: $font-weight-bold;
+    color: var(--zen-text-heading);
+
+    i {
+      color: var(--zen-accent-amber);
+    }
+  }
+}
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: $space-3;
+  padding: 0 $space-4 $space-4;
+
+  @include from-tablet {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    padding: 0;
+  }
+}
+
+.insight-card {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-3;
+  padding: $space-4;
+  background: var(--zen-surface);
+  border: 1px solid var(--zen-border-glass);
+  border-radius: $radius-xl;
+  transition: all 0.3s ease;
+
+  &.info {
+    border-left: 4px solid var(--zen-accent-teal);
+  }
+
+  &.warning {
+    border-left: 4px solid var(--zen-accent-amber);
+  }
+
+  &.critical {
+    border-left: 4px solid var(--zen-accent-danger);
+  }
+}
+
+.insight-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: $radius-lg;
+  background: var(--zen-bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  i {
+    font-size: 20px;
+    color: var(--zen-accent-teal);
+  }
+}
+
+.insight-content {
+  flex: 1;
+
+  h4 {
+    margin: 0 0 $space-1;
+    font-size: $text-body-md;
+    font-weight: $font-weight-semibold;
+    color: var(--zen-text-heading);
+  }
+
+  p {
+    margin: 0;
+    font-size: $text-body-sm;
+    color: var(--zen-text-secondary);
+    line-height: 1.5;
+  }
+}
+
+.insight-badge {
+  padding: $space-1 $space-2;
+  border-radius: $radius-full;
+  font-size: $text-body-xs;
+  font-weight: $font-weight-medium;
+  text-transform: uppercase;
+  background: var(--zen-bg-secondary);
+  color: var(--zen-text-muted);
+}
+</style>

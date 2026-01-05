@@ -301,6 +301,7 @@ export interface CreateTagRequest {
   category?: string
   color?: string
   description?: string
+  user_id?: number  // Required for superadmins to specify which tenant
 }
 
 export async function listTags(): Promise<Tag[]> {

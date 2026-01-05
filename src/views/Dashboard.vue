@@ -51,18 +51,17 @@
         </div>
 
         <template v-else>
-          <!-- Member Summary (shown when member is selected) -->
+          <!-- User Detail Panel - shown when member is selected -->
           <transition name="slide-down">
-            <section v-if="selectedMember && selectedMemberDashboard" class="member-summary-section">
-              <MemberSummaryCard
-                :member="selectedMember"
-                :summary="selectedMemberDashboard.summary"
-                :is-superadmin="isSuperadmin"
+            <section v-if="selectedMember" class="user-detail-section">
+              <UserDetailPanel
+                ref="userDetailPanelRef"
+                :user-id="String(selectedMemberId)"
                 :is-admin="isAdmin"
+                :is-superadmin="isSuperadmin"
                 @close="handleMemberDeselect"
-                @view-details="navigateToUserDetails"
-                @update-member="handleUpdateMember"
                 @tags-updated="handleTagsChanged"
+                @member-updated="handleUpdateMember"
               />
             </section>
           </transition>
@@ -109,8 +108,8 @@
             </div>
           </section>
 
-          <!-- Charts Section -->
-          <section class="charts-section">
+          <!-- Charts Section - Only show when no member is selected -->
+          <section v-if="!selectedMemberId" class="charts-section">
             <!-- Fatigue Timeline (Full Width) - Statistics Style -->
             <div class="chart-card full-width statistics-card">
               <div class="chart-header statistics-header">
@@ -120,9 +119,6 @@
                     {{ t('dashboard.brainFatigue') }}
                     <template v-if="isAdmin">
                       - {{ vrName || t('dashboard.allVRData') }}
-                    </template>
-                    <template v-else-if="selectedMember">
-                      - {{ selectedMember.name }}
                     </template>
                   </span>
                 </div>
@@ -312,6 +308,7 @@ import LanguageToggle from '../components/zen/LanguageToggle.vue'
 import MemberSummaryCard from '../components/zen/MemberSummaryCard.vue'
 import CustomLoader from '../components/zen/CustomLoader.vue'
 import TagManager from '../components/zen/TagManager.vue'
+import UserDetailPanel from '../components/zen/UserDetailPanel.vue'
 
 export default defineComponent({
     name: "Dashboard",
@@ -321,7 +318,8 @@ export default defineComponent({
         LanguageToggle, 
         MemberSummaryCard,
         CustomLoader,
-        TagManager
+        TagManager,
+        UserDetailPanel
     },
     props: {
         login_user_id_from_path: { type: String, required: false }
@@ -493,6 +491,13 @@ export default defineComponent({
             this.refreshChartWithNewData()
         },
         selectedMemberId(newId) {
+            // Persist to localStorage
+            if (newId) {
+                localStorage.setItem('dashboard_selectedMemberId', newId)
+            } else {
+                localStorage.removeItem('dashboard_selectedMemberId')
+            }
+            
             if (newId) {
                 this.loadMemberData(newId)
             } else {
@@ -661,6 +666,11 @@ export default defineComponent({
                 if (this.selectedMemberId === memberData.id) {
                     await this.fetchUser()
                     await this.fetchLatest()
+                }
+                
+                // Refresh UserDetailPanel data without full remount
+                if (this.$refs.userDetailPanelRef?.refreshData) {
+                    await this.$refs.userDetailPanelRef.refreshData()
                 }
                 
             } catch (e) {
@@ -1321,6 +1331,9 @@ export default defineComponent({
     async mounted() {
         const auth = useAuthStore()
         
+        // Restore selectedMemberId from localStorage
+        const savedMemberId = localStorage.getItem('dashboard_selectedMemberId')
+        
         // Check if we're in superadmin mode
         if (this.isSuperadmin) {
             this.loading = true
@@ -1350,6 +1363,11 @@ export default defineComponent({
                         standardDeviation: 'N/A'
                     }
                 }
+                
+                // Restore selected member after members are loaded
+                if (savedMemberId && this.members.some(m => m.id === savedMemberId)) {
+                    this.selectedMemberId = savedMemberId
+                }
             } catch (e) {
                 console.error('Superadmin data load error:', e)
                 ElMessage.error(`Failed to load superadmin data: ${e?.message || e}`)
@@ -1374,6 +1392,12 @@ export default defineComponent({
         if (auth.user?.is_admin) {
             this.loading = true
             await this.fetchGroup()
+            
+            // Restore selected member after members are loaded
+            if (savedMemberId && this.members.some(m => m.id === savedMemberId)) {
+                this.selectedMemberId = savedMemberId
+            }
+            
             this.loading = false
             // Initialize chart for admin with all VR data
             await this.$nextTick()
@@ -1502,6 +1526,11 @@ export default defineComponent({
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+
+  &:has(.user-detail-section) {
+    padding: 0;
+    max-width: 100%;
+  }
 
   @media (max-width: 767px) {
     padding: $space-0;
@@ -1892,6 +1921,11 @@ export default defineComponent({
 
 .member-summary-section {
   margin-bottom: $space-5;
+}
+
+.user-detail-section {
+  margin-bottom: 0;
+  min-height: 400px;
 }
 
 .slide-down-enter-active {

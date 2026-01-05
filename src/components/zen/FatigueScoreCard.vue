@@ -1,16 +1,19 @@
 <template>
   <div class="fatigue-score-card" :class="{ 'dark-mode': isDark }">
     <div class="card-header">
-      <h4 class="card-title">Latest Fatigue Score</h4>
-      <el-tooltip
-        content="The most recent fatigue level measured during your last session. Higher scores indicate greater fatigue levels (0-100 scale)."
-        placement="top"
-        :show-after="200"
-      >
-        <span class="info-icon">
-          <i class="mdi mdi-information-outline"></i>
-        </span>
-      </el-tooltip>
+      <div class="title-row">
+        <h4 class="card-title">Latest Fatigue Score</h4>
+        <el-tooltip
+          content="The most recent fatigue level measured during your last session. Higher scores indicate greater fatigue levels (0-100 scale)."
+          placement="top"
+          :show-after="200"
+        >
+          <span class="info-icon">
+            <i class="mdi mdi-information-outline"></i>
+          </span>
+        </el-tooltip>
+      </div>
+      <span v-if="latestDate" class="latest-date">{{ formattedDate }}</span>
     </div>
     <div class="score-ring-wrapper">
       <svg class="score-ring" viewBox="0 0 120 120">
@@ -72,11 +75,23 @@ import { computed } from 'vue'
 interface Props {
   score: number
   isDark?: boolean
+  latestDate?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
   score: 0,
-  isDark: false
+  isDark: false,
+  latestDate: null
+})
+
+// Format the date for display
+const formattedDate = computed(() => {
+  if (!props.latestDate) return ''
+  const date = new Date(props.latestDate)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${year}/${month}/${day}`
 })
 
 const circumference = 2 * Math.PI * 50
@@ -124,7 +139,7 @@ const dotPosition = computed(() => {
   @media (min-width: $breakpoint-md) {
     border-left: 1px solid var(--zen-border-glass);
     border-right: 1px solid var(--zen-border-glass);
-    border-radius: $radius-2xl;
+    border-radius: 0;
   }
 
   &:hover {
@@ -139,15 +154,29 @@ const dotPosition = computed(() => {
 
 .card-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: $space-2;
+  gap: $space-1;
   margin-bottom: $space-2;
 
   @media (max-width: $breakpoint-sm) {
     gap: $space-1;
     margin-bottom: $space-1;
   }
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+}
+
+.latest-date {
+  font-size: $text-body-xs;
+  color: var(--zen-accent-teal);
+  font-weight: $font-weight-medium;
 }
 
 .card-title {

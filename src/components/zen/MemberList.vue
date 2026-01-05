@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useLanguage } from '../../composables/useLanguage'
 import type { Member } from '../../data/members'
 import type { Tag } from '../../lib/api'
@@ -113,7 +113,19 @@ const emit = defineEmits<{
 
 // Modal state
 const showCreateUserModal = ref(false)
-const selectedTagIds = ref<number[]>([])
+
+// Restore selectedTagIds from localStorage
+const savedTagIds = localStorage.getItem('memberList_selectedTagIds')
+const selectedTagIds = ref<number[]>(savedTagIds ? JSON.parse(savedTagIds) : [])
+
+// Watch for changes and persist to localStorage
+watch(selectedTagIds, (newIds) => {
+  if (newIds.length > 0) {
+    localStorage.setItem('memberList_selectedTagIds', JSON.stringify(newIds))
+  } else {
+    localStorage.removeItem('memberList_selectedTagIds')
+  }
+}, { deep: true })
 
 // Get all unique tags from members
 const allTags = computed(() => {
