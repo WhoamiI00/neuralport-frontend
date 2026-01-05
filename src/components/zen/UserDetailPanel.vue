@@ -746,10 +746,12 @@ const handleTagsUpdated = async () => {
   emit('tags-updated')
 }
 
-// Variability trend data
+// Variability trend data - get the 10 most recent scores
+// Note: allScoresData is sorted DESC (newest first), so slice(0, 10) gets latest
 const variabilityTrendData = computed(() => {
   if (allScoresData.value.length === 0) return [65, 72, 68, 75, 70, 78, 72, 80, 75, 72]
-  return allScoresData.value.slice(-10).map((d: any) => d.score)
+  // Reverse to show chronological order (oldest to newest) for the sparkline
+  return allScoresData.value.slice(0, 10).reverse().map((d: any) => d.score)
 })
 
 // Chart options
@@ -1100,9 +1102,11 @@ async function fetchUserData() {
     allScoresData.value = scoresWithData
     
     // Calculate stats
+    // Note: API returns scores sorted by created_at DESC (newest first)
     const validScores = scoresWithData.filter((s: any) => s.score !== null && s.score !== undefined)
     const avgScore = validScores.length > 0 ? validScores.reduce((sum: number, s: any) => sum + s.score, 0) / validScores.length : 0
-    const latestScore = validScores.length > 0 ? validScores[validScores.length - 1]?.score : 0
+    // Latest score is the FIRST item since API returns DESC order (newest first)
+    const latestScore = validScores.length > 0 ? validScores[0]?.score : 0
     
     // Calculate standard deviation
     let stdDev = 0
@@ -1140,8 +1144,8 @@ async function fetchUserData() {
       })
     }
     
-    // Get latest score date
-    const latestScoreData = validScores.length > 0 ? validScores[validScores.length - 1] : null
+    // Get latest score date (first item since API returns DESC order - newest first)
+    const latestScoreData = validScores.length > 0 ? validScores[0] : null
     const latestScoreDate = latestScoreData?.created_at || latestScoreData?.sessionDate || null
     
     // Set all chart dates to the latest score's month

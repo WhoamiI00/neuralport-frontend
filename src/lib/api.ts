@@ -1,6 +1,28 @@
 // Use Vite dev server proxy - all /api requests will be forwarded to Django backend
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
+// ============================================================================
+// REQUEST DEDUPLICATION
+// Prevents duplicate concurrent requests to the same endpoint
+// ============================================================================
+const pendingRequests = new Map<string, Promise<any>>()
+
+function deduplicatedFetch<T>(key: string, fetchFn: () => Promise<T>): Promise<T> {
+  // If there's already a pending request for this key, return it
+  if (pendingRequests.has(key)) {
+    return pendingRequests.get(key) as Promise<T>
+  }
+  
+  // Create new request and store it
+  const request = fetchFn().finally(() => {
+    // Remove from pending after completion (success or error)
+    pendingRequests.delete(key)
+  })
+  
+  pendingRequests.set(key, request)
+  return request
+}
+
 // Helper to get auth headers - supports both regular auth and superadmin auth
 function getAuthHeaders() {
   // Check for regular auth token first
@@ -160,41 +182,53 @@ export interface Score {
 }
 
 export async function listScores(tenantId: number, userId: number): Promise<Score[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/scores`,
-    {
-      headers: getAuthHeaders(),
-      credentials: 'include'
-    }
-  )
+  const cacheKey = `listScores_${tenantId}_${userId}`
+  
+  return deduplicatedFetch(cacheKey, async () => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/scores`,
+      {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      }
+    )
 
-  const data = await handleApiResponse(response)
-  return data.scores || []
+    const data = await handleApiResponse(response)
+    return data.scores || []
+  })
 }
 
 export async function listTenantScores(tenantId: number): Promise<Score[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/tenants/${tenantId}/scores`,
-    {
-      headers: getAuthHeaders(),
-      credentials: 'include'
-    }
-  )
+  const cacheKey = `listTenantScores_${tenantId}`
+  
+  return deduplicatedFetch(cacheKey, async () => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/tenants/${tenantId}/scores`,
+      {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      }
+    )
 
-  const data = await handleApiResponse(response)
-  return data.scores || []
+    const data = await handleApiResponse(response)
+    return data.scores || []
+  })
 }
 
 export async function getLatestScore(tenantId: number, userId: number): Promise<Score> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/latest`,
-    {
-      headers: getAuthHeaders(),
-      credentials: 'include'
-    }
-  )
+  const cacheKey = `getLatestScore_${tenantId}_${userId}`
+  
+  return deduplicatedFetch(cacheKey, async () => {
+    const response = await fetch(
+      `${API_BASE_URL}/api/tenants/${tenantId}/users/${userId}/latest`,
+      {
+        headers: getAuthHeaders(),
+        credentials: 'include'
+      }
+    )
 
-  return handleApiResponse(response)
+    return handleApiResponse(response)
+  })
 }
 
 // ============================================================================
@@ -213,12 +247,16 @@ export interface UserProfile {
 }
 
 export async function getUser(userId: number): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
-    headers: getAuthHeaders(),
-    credentials: 'include'
-  })
+  const cacheKey = `getUser_${userId}`
+  
+  return deduplicatedFetch(cacheKey, async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+      headers: getAuthHeaders(),
+      credentials: 'include'
+    })
 
-  return handleApiResponse(response)
+    return handleApiResponse(response)
+  })
 }
 
 export async function getUsersByGroup(linkId: number): Promise<UserProfile[]> {

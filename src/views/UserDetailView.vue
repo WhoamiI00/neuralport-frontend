@@ -1108,8 +1108,8 @@ const totalSessionPages = computed(() => Math.ceil(filteredSessions.value.length
 // Variability trend data for StandardDeviationCard sparkline
 const variabilityTrendData = computed(() => {
   if (!memberDashboard.value) return [65, 72, 68, 75, 70, 78, 72, 80, 75, 72]
-  // Use fatigue timeline scores for trend visualization
-  return memberDashboard.value.fatigueTimeline.slice(-10).map((d: any) => d.score)
+  // Use fatigue timeline scores for trend visualization (already in chronological order)
+  return memberDashboard.value.fatigueTimeline.map((d: any) => d.score)
 })
 
 // Chart options - use member dashboard data with dynamic date selection
@@ -1501,8 +1501,9 @@ const fetchUserData = async () => {
       storageAverages.map(avg => [avg.key, avg])
     )
     
-    // Merge last 10 scores with their storage_avg data
-    const sessionsWithData = scores.slice(-10).map((score: any) => {
+    // Get latest 10 scores with their storage_avg data
+    // Note: scores are sorted DESC (newest first), so slice(0, 10) gets latest 10
+    const sessionsWithData = scores.slice(0, 10).map((score: any) => {
       const storageAvg = storageAvgMap.get(score.key)
       
       return {
@@ -1519,8 +1520,10 @@ const fetchUserData = async () => {
     })
     
     // Calculate statistics from scores
+    // Note: API returns scores sorted by created_at DESC (newest first)
     const scoreValues = scores.map((s: any) => Number(s.score))
-    const latestScore = scoreValues.length > 0 ? scoreValues[scoreValues.length - 1] : 0
+    // Latest score is the FIRST item since API returns DESC order
+    const latestScore = scoreValues.length > 0 ? scoreValues[0] : 0
     const avgScore = scoreValues.length > 0 
       ? scoreValues.reduce((a: number, b: number) => a + b, 0) / scoreValues.length 
       : 0
@@ -1531,7 +1534,7 @@ const fetchUserData = async () => {
       : 0
     const stdDev = Math.sqrt(variance)
     
-    // Create member object
+    // Create member object (first item is latest since DESC order)
     member.value = {
       id: String(userProfile.id),
       name: displayName,
@@ -1541,7 +1544,7 @@ const fetchUserData = async () => {
       fatigueScore: latestScore || 0,
       role: 'Player',
       joinDate: new Date().toISOString(), // UserProfile doesn't have created_at
-      lastActiveDate: scores.length > 0 ? (scores[scores.length - 1]?.created_at || new Date().toISOString()) : new Date().toISOString()
+      lastActiveDate: scores.length > 0 ? (scores[0]?.created_at || new Date().toISOString()) : new Date().toISOString()
     }
     
     // Create blink analytics from sessions (using blink duration averages)
@@ -1572,13 +1575,15 @@ const fetchUserData = async () => {
         variabilityTrend: stdDev > 20 ? 70 : 50,
         totalSessions: scores.length
       },
-      fatigueTimeline: scores.slice(-10).map((s: any) => ({
+      // Get latest 10 scores, reversed for chronological display (oldest to newest)
+      fatigueTimeline: scores.slice(0, 10).reverse().map((s: any) => ({
         date: new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         score: Number(s.score)
       })),
       blinkAnalytics,
       pupilTracking,
-      recentSessions: sessionsWithData.slice(-5).reverse().map((session: any, _idx: number) => ({
+      // Get latest 5 sessions (already from latest 10), show newest first
+      recentSessions: sessionsWithData.slice(0, 5).map((session: any, _idx: number) => ({
         sessionId: session.key.substring(0, 8).toUpperCase(),
         date: session.created_at,
         duration: 0,

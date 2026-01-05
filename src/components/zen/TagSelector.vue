@@ -164,7 +164,6 @@ async function handleSelectTag(item: any) {
 
     // If it's a new tag (not in system), create it first
     if (item._isNew) {
-      console.log('[TagSelector] Creating new tag:', item.name, 'for user:', props.userId)
       tag = await createTag({
         name: item.name,
         color: item.color,
@@ -174,13 +173,10 @@ async function handleSelectTag(item: any) {
       ElMessage.success(`Created new tag "${tag.name}"`)
     } else {
       tag = item
-      console.log('[TagSelector] Using existing tag:', tag)
     }
 
     // Assign tag to user
-    console.log('[TagSelector] Assigning tag to user:', props.userId, tag.id)
-    const result = await assignTagsToUser(props.userId, [tag.id])
-    console.log('[TagSelector] Assignment result:', result)
+    await assignTagsToUser(props.userId, [tag.id])
     
     // Add to selected tags
     selectedTags.value = [...selectedTags.value, tag]
@@ -190,7 +186,6 @@ async function handleSelectTag(item: any) {
     showInput.value = false
     
     // Emit update event
-    console.log('[TagSelector] Emitting tags-updated')
     emit('tags-updated')
   } catch (error: any) {
     console.error('[TagSelector] Error assigning tag:', error)

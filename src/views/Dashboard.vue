@@ -906,11 +906,6 @@ export default defineComponent({
             const user_id = this.getUserId()
             const tenant_id = this.getTenantId()
             
-            console.log('[fetchChartData] isSuperadmin:', this.isSuperadmin)
-            console.log('[fetchChartData] selectedDeviceId:', this.selectedDeviceId)
-            console.log('[fetchChartData] tenant_id:', tenant_id)
-            console.log('[fetchChartData] selectedMemberId:', this.selectedMemberId)
-            
             let start, end
             
             if (this.mode === "Day") {
@@ -933,7 +928,6 @@ export default defineComponent({
                 
                 if (this.selectedMemberId) {
                     // Specific user is selected - fetch only their scores with caching
-                    console.log('[fetchChartData] Fetching user scores for user:', user_id)
                     const cacheKey = `user_scores_${user_id}`
                     scores = await fetchWithCache(
                         cacheKey,
@@ -943,7 +937,6 @@ export default defineComponent({
                     )
                 } else if (this.isAdmin || this.isSuperadmin) {
                     // Admin or Superadmin with no user selected - fetch all tenant scores with caching
-                    console.log('[fetchChartData] Fetching tenant scores for tenant:', tenant_id)
                     const cacheKey = `tenant_scores_${tenant_id}`
                     scores = await fetchWithCache(
                         cacheKey,
@@ -952,7 +945,6 @@ export default defineComponent({
                         () => listTenantScores(tenant_id),
                         true
                     )
-                    console.log('[fetchChartData] Got scores:', scores?.length || 0)
                 } else {
                     // Regular user - fetch their own scores with caching
                     const cacheKey = `user_scores_${user_id}`
@@ -1317,14 +1309,11 @@ export default defineComponent({
         },
         
         async loadMemberData(memberId) {
-            this.loading = true
-            await Promise.all([
-                this.fetchUser(),
-                this.fetchLatest()
-            ])
+            // When a member is selected, UserDetailPanel handles all data fetching
+            // Dashboard only needs to show the panel, no need to fetch user/latest/chart
+            // This eliminates duplicate API calls
             this.loading = false
-            await this.$nextTick()
-            this.initChart1()
+            // Don't call initChart1 - the chart section is hidden when member is selected
         }
     },
 

@@ -22,42 +22,73 @@ interface CachedData<T> {
   timestamp: number
 }
 
+// Request deduplication for cache status calls
+const pendingCacheRequests = new Map<string, Promise<CacheStatus>>()
+
 /**
- * Get cache status for a specific user
+ * Get cache status for a specific user (with deduplication)
  */
 export async function getUserCacheStatus(userId: number, token: string): Promise<CacheStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cache-status`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    credentials: 'include'
-  })
+  const key = `user_cache_${userId}`
   
-  if (!response.ok) {
-    throw new Error('Failed to get cache status')
+  // Return pending request if exists
+  if (pendingCacheRequests.has(key)) {
+    return pendingCacheRequests.get(key)!
   }
   
-  return response.json()
+  const request = (async () => {
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/cache-status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to get cache status')
+    }
+    
+    return response.json()
+  })().finally(() => {
+    pendingCacheRequests.delete(key)
+  })
+  
+  pendingCacheRequests.set(key, request)
+  return request
 }
 
 /**
- * Get cache status for entire tenant (admin only)
+ * Get cache status for entire tenant (admin only, with deduplication)
  */
 export async function getTenantCacheStatus(tenantId: number, token: string): Promise<CacheStatus> {
-  const response = await fetch(`${API_BASE_URL}/api/tenants/${tenantId}/cache-status`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    credentials: 'include'
-  })
+  const key = `tenant_cache_${tenantId}`
   
-  if (!response.ok) {
-    throw new Error('Failed to get cache status')
+  // Return pending request if exists
+  if (pendingCacheRequests.has(key)) {
+    return pendingCacheRequests.get(key)!
   }
   
-  return response.json()
+  const request = (async () => {
+    const response = await fetch(`${API_BASE_URL}/api/tenants/${tenantId}/cache-status`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to get cache status')
+    }
+    
+    return response.json()
+  })().finally(() => {
+    pendingCacheRequests.delete(key)
+  })
+  
+  pendingCacheRequests.set(key, request)
+  return request
 }
 
 /**

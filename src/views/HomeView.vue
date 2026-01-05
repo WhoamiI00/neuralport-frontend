@@ -46,14 +46,10 @@ onMounted(async () => {
   try {
     loading.value = true
     
-    console.log('HomeView mounted, user:', authStore.user)
-    
     // Fetch current user's profile
     if (authStore.user?.id) {
       try {
-        console.log('Fetching user profile:', authStore.user.id)
         myProfile.value = await fetchProfile(authStore.user.id)
-        console.log('Got profile:', myProfile.value)
       } catch (e: any) {
         console.error('Error fetching my profile:', e)
         myProfileError.value = e.message
@@ -61,15 +57,12 @@ onMounted(async () => {
 
       // Fetch the same profile again as "test" to demonstrate the API call
       try {
-        console.log('Fetching profile via API (same user)')
         testProfile.value = await fetchProfile(authStore.user.id)
-        console.log('Got test profile:', testProfile.value)
       } catch (e: any) {
         console.error('Error fetching test profile:', e)
         testProfileError.value = e.message
       }
     } else {
-      console.log('No user ID available')
       myProfileError.value = 'Not authenticated'
     }
   } finally {
