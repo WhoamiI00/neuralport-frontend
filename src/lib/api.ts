@@ -278,6 +278,7 @@ export interface CreateUserRequest {
   name?: string
   uniform_number?: number | string
   portrait_image?: string
+  tenant_id?: number  // Required for superadmin, optional for regular admin
 }
 
 export interface CreateUserResponse {

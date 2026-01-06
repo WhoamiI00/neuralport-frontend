@@ -609,6 +609,11 @@ export default defineComponent({
                     portrait_image: userData.avatarUrl || null
                 }
                 
+                // For superadmin, include the selected device's tenant_id
+                if (this.isSuperadmin && this.selectedDeviceId) {
+                    body.tenant_id = this.selectedDeviceId
+                }
+                
                 // Make API call to create user
                 await createUser(body)
                 

@@ -106,6 +106,7 @@
                     class="form-input"
                     :class="{ 'error': errors.username }"
                     :placeholder="t('user.enterUsername')"
+                    @input="validateUsername"
                     @blur="validateUsername"
                   />
                   <span v-if="errors.username" class="error-message">{{ errors.username }}</span>

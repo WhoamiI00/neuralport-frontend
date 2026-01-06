@@ -46,7 +46,7 @@
 
     <!-- Add New User Button -->
     <button 
-      v-if="isAdmin"
+      v-if="isAdmin || isSuperadmin"
       class="add-user-btn" 
       @click="openCreateUserModal"
     >
