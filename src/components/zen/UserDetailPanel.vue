@@ -242,9 +242,15 @@
               :empty-text="sessionSearch ? 'No sessions found' : 'No session history'"
               class="sessions-table"
             >
-              <el-table-column prop="sessionId" label="Session ID" min-width="140">
+              <el-table-column prop="sessionId" label="Session ID" min-width="100">
                 <template #default="{ row }">
-                  <span class="session-id">{{ row.sessionId }}</span>
+                  <el-tooltip 
+                    :content="row.sessionId" 
+                    placement="top" 
+                    :show-after="300"
+                  >
+                    <span class="session-id truncated">{{ row.sessionId?.slice(0, 4) }}...</span>
+                  </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="date" label="Date" min-width="130" sortable>
@@ -252,18 +258,50 @@
                   {{ formatDateTime(row.date) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="fatigueScore" label="Fatigue Score" width="130" align="center" sortable>
+              <el-table-column prop="fatigueScore" label="Fatigue Score" width="120" align="center" sortable>
                 <template #default="{ row }">
                   <span class="score-badge" :class="getScoreClass(row.fatigueScore)">
                     {{ row.fatigueScore }}
                   </span>
                 </template>
               </el-table-column>
-              <el-table-column prop="status" label="Status" width="110" align="center">
+              <el-table-column label="Pupil (mm)" width="110" align="center">
+                <template #default="{ row }">
+                  <el-tooltip 
+                    :content="`L: ${row.leftPupilSize?.toFixed(2) || '0.00'} / R: ${row.rightPupilSize?.toFixed(2) || '0.00'}`" 
+                    placement="top"
+                  >
+                    <span class="metric-value pupil">
+                      {{ getAvgPupil(row) }}
+                    </span>
+                  </el-tooltip>
+                </template>
+              </el-table-column>
+              <el-table-column label="Blink (ms)" width="110" align="center">
+                <template #default="{ row }">
+                  <el-tooltip 
+                    :content="`L: ${row.leftBlinkDuration?.toFixed(0) || '0'} / R: ${row.rightBlinkDuration?.toFixed(0) || '0'}`" 
+                    placement="top"
+                  >
+                    <span class="metric-value blink">
+                      {{ getAvgBlink(row) }}
+                    </span>
+                  </el-tooltip>
+                </template>
+              </el-table-column>
+              <el-table-column prop="status" label="Status" width="100" align="center">
                 <template #default="{ row }">
                   <el-tag :type="getStatusType(row.status)" size="small">
                     {{ row.status }}
                   </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="Actions" width="90" align="center" fixed="right">
+                <template #default="{ row }">
+                  <el-button link type="primary" size="small" @click="viewSession(row)">
+                    <i class="mdi mdi-eye"></i>
+                    View
+                  </el-button>
                 </template>
               </el-table-column>
             </el-table>
@@ -460,6 +498,23 @@ async function fetchStorageAvgData() {
       }
     })
     
+    // Also update sessions in userData with the new blink/pupil data
+    if (userData.value?.sessions) {
+      userData.value.sessions = userData.value.sessions.map((session: any) => {
+        const scoreData = allScoresData.value.find((s: any) => s.key === session.sessionId)
+        if (scoreData) {
+          return {
+            ...session,
+            leftPupilSize: scoreData.leftPupilSize || 0,
+            rightPupilSize: scoreData.rightPupilSize || 0,
+            leftBlinkDuration: scoreData.leftBlinkDuration || 0,
+            rightBlinkDuration: scoreData.rightBlinkDuration || 0
+          }
+        }
+        return session
+      })
+    }
+    
     storageDataLoaded.value = true
   } catch (err) {
     console.error('Error fetching storage avg data:', err)
@@ -573,6 +628,30 @@ function getStatusType(status: string) {
     pending: 'info'
   }
   return types[status] || 'info'
+}
+
+// Get average pupil size (L+R / 2)
+function getAvgPupil(row: any) {
+  const left = row.leftPupilSize || 0
+  const right = row.rightPupilSize || 0
+  if (left === 0 && right === 0) return '-'
+  const avg = (left + right) / 2
+  return avg.toFixed(2)
+}
+
+// Get average blink duration (L+R / 2)
+function getAvgBlink(row: any) {
+  const left = row.leftBlinkDuration || 0
+  const right = row.rightBlinkDuration || 0
+  if (left === 0 && right === 0) return '-'
+  const avg = (left + right) / 2
+  return Math.round(avg)
+}
+
+// View session details - placeholder for future implementation
+function viewSession(session: any) {
+  console.log('View session:', session)
+  // TODO: Implement session detail view
 }
 
 function getInsightIcon(type: string) {
@@ -739,10 +818,26 @@ const totalSessionPages = computed(() => Math.ceil(filteredSessions.value.length
 // Tag editing permission
 const canEditTags = computed(() => props.isAdmin || props.isSuperadmin)
 
-// Handle tags updated
+// Handle tags updated - only refresh user profile (tags), not scores
 const handleTagsUpdated = async () => {
-  // Refresh user data after tags are updated
-  await fetchUserData()
+  // Only refresh user profile to get updated tags, not scores
+  // This avoids unnecessary API calls and improves UX
+  try {
+    const currentUserId = parseInt(props.userId)
+    const updatedUser = await getUser(currentUserId)
+    
+    // Update only the user profile data, keep existing scores
+    userData.value = {
+      ...userData.value,
+      name: updatedUser.name || userData.value?.name,
+      uniform_number: updatedUser.uniform_number || userData.value?.uniform_number,
+      portrait_image: updatedUser.portrait_image || userData.value?.portrait_image,
+      tags: updatedUser.tags || []
+    }
+  } catch (err) {
+    console.error('Error refreshing user tags:', err)
+  }
+  
   emit('tags-updated')
 }
 
@@ -1120,6 +1215,10 @@ async function fetchUserData() {
       sessionId: score.key || `session-${idx}`,
       date: score.created_at,
       fatigueScore: Math.round(score.score),
+      leftPupilSize: score.leftPupilSize || 0,
+      rightPupilSize: score.rightPupilSize || 0,
+      leftBlinkDuration: score.leftBlinkDuration || 0,
+      rightBlinkDuration: score.rightBlinkDuration || 0,
       status: 'completed'
     }))
     
@@ -1882,6 +1981,19 @@ onMounted(() => {
   font-family: monospace;
   font-size: $text-body-sm;
   color: var(--zen-text-secondary);
+  
+  &.truncated {
+    cursor: pointer;
+    padding: 2px 6px;
+    background: var(--zen-bg-tertiary);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    
+    &:hover {
+      background: var(--zen-bg-hover);
+      color: var(--zen-text-primary);
+    }
+  }
 }
 
 .score-badge {
@@ -1907,6 +2019,27 @@ onMounted(() => {
   &.high {
     background: rgba(239, 68, 68, 0.1);
     color: #EF4444;
+  }
+}
+
+.metric-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: $text-body-sm;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: default;
+  
+  &.pupil {
+    background: rgba(99, 102, 241, 0.1);
+    color: #818CF8;
+  }
+  
+  &.blink {
+    background: rgba(6, 182, 212, 0.1);
+    color: #22D3EE;
   }
 }
 

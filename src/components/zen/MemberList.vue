@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useLanguage } from '../../composables/useLanguage'
 import type { Member } from '../../data/members'
 import type { Tag } from '../../lib/api'

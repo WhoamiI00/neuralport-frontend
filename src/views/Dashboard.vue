@@ -285,7 +285,7 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, defineAsyncComponent } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTheme } from '../composables/useTheme'
@@ -294,21 +294,32 @@ import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
 import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, listTenantScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
 import { fetchWithCache } from '../lib/cache'
-import * as echarts from "echarts"
-import _ from "lodash"
+// Tree-shake echarts - only import what we use
+import * as echarts from 'echarts/core'
+import { BarChart, LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, DataZoomComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+// Tree-shake lodash - only import used functions
+import debounce from 'lodash/debounce'
+import throttle from 'lodash/throttle'
 import {
     format, addDays, addWeeks, addMonths,
     startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth
 } from 'date-fns'
+import { debounce as perfDebounce } from '../lib/performance'
 
-// Components
+// Register only required ECharts components (reduces bundle size significantly)
+echarts.use([BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, DataZoomComponent, CanvasRenderer])
+
+// Components - Use async components for modals (loaded on demand)
 import Sidebar from '../components/zen/Sidebar.vue'
 import ThemeToggle from '../components/zen/ThemeToggle.vue'
 import LanguageToggle from '../components/zen/LanguageToggle.vue'
 import MemberSummaryCard from '../components/zen/MemberSummaryCard.vue'
 import CustomLoader from '../components/zen/CustomLoader.vue'
-import TagManager from '../components/zen/TagManager.vue'
-import UserDetailPanel from '../components/zen/UserDetailPanel.vue'
+// Lazy load modals - they're not needed on initial render
+const TagManager = defineAsyncComponent(() => import('../components/zen/TagManager.vue'))
+const UserDetailPanel = defineAsyncComponent(() => import('../components/zen/UserDetailPanel.vue'))
 
 export default defineComponent({
     name: "Dashboard",
@@ -882,17 +893,16 @@ export default defineComponent({
         // ========== TAG MANAGEMENT ==========
         
         async handleTagsChanged() {
-            // Refresh member list to get updated tags
+            // Only refresh member list to get updated tags
+            // No need to refetch user data or scores - they haven't changed
             if (this.isSuperadmin && this.selectedDeviceId) {
                 await this.refreshSuperadminMembers(this.selectedDeviceId)
             } else {
                 await this.fetchGroup()
             }
             
-            // If a user is selected, refresh their data
-            if (this.selectedMemberId) {
-                await this.fetchUser()
-            }
+            // Update the selected member's tags in the local members array
+            // This is already done by fetchGroup(), so no additional API calls needed
         },
         
         // ========== END TAG MANAGEMENT ==========
@@ -1168,7 +1178,7 @@ export default defineComponent({
             } 
         },
         
-        __resizeHandler: _.throttle(function () {
+        __resizeHandler: throttle(function () {
             if (this.chart1) {
                 this.chart1.dispose()
                 this.chart1 = null

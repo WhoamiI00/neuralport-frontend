@@ -1,11 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
-import LoginView from '../views/LoginView.vue'
-import AccountView from '../views/AccountView.vue'
-import StorageDemoView from '../views/StorageDemoView.vue'
-import Dashboard from '../views/Dashboard.vue'
-import UserDetailView from '../views/UserDetailView.vue'
+
+// Lazy-loaded routes for better initial load performance
+// Each view is loaded only when the user navigates to it
+const LoginView = () => import('../views/LoginView.vue')
+const AccountView = () => import('../views/AccountView.vue')
+const StorageDemoView = () => import('../views/StorageDemoView.vue')
+const Dashboard = () => import('../views/Dashboard.vue')
+const UserDetailView = () => import('../views/UserDetailView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),

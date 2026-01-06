@@ -318,9 +318,15 @@
               :empty-text="sessionSearch ? 'No sessions found' : 'No session history'"
               class="sessions-table"
             >
-              <el-table-column prop="sessionId" label="Session ID" min-width="140">
+              <el-table-column prop="sessionId" label="Session ID" min-width="100">
                 <template #default="{ row }">
-                  <span class="session-id">{{ row.sessionId }}</span>
+                  <el-tooltip 
+                    :content="row.sessionId" 
+                    placement="top" 
+                    :show-after="300"
+                  >
+                    <span class="session-id truncated">{{ row.sessionId?.slice(0, 4) }}...</span>
+                  </el-tooltip>
                 </template>
               </el-table-column>
               <el-table-column prop="date" label="Date" min-width="130" sortable>
@@ -3081,6 +3087,19 @@ watch(() => route.params.id, () => {
 
   @include from-tablet {
     font-size: $text-body-sm;
+  }
+  
+  &.truncated {
+    cursor: pointer;
+    padding: 2px 6px;
+    background: var(--zen-bg-tertiary);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+    
+    &:hover {
+      background: var(--zen-bg-hover);
+      color: var(--zen-text-primary);
+    }
   }
 }
 
