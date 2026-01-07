@@ -674,6 +674,12 @@ export default defineComponent({
         async handleUpdateMember(memberData) {
             // memberData contains: { id, username, avatar, avatarUrl }
             
+            // Handle pool admin mode separately
+            if (this.isPoolAdmin) {
+                await this.handlePoolAdminUpdateMember(memberData)
+                return
+            }
+            
             const auth = useAuthStore()
             const superadminStore = useSuperadminStore()
             
@@ -1486,9 +1492,54 @@ export default defineComponent({
             }
         },
         
-        handlePoolAdminLogout() {
-            this.poolAdminStore.logout()
+        async handlePoolAdminUpdateMember(memberData) {
+            // memberData contains: { id, username, avatar, avatarUrl }
+            
+            if (!this.poolAdminStore.isAuthenticated) {
+                ElMessage.error('Pool admin authentication required')
+                return
+            }
+            
+            try {
+                const currentMember = this.members.find(m => m.id === memberData.id)
+                
+                // Build update payload
+                const payload = {}
+                
+                if (currentMember && memberData.username !== currentMember.name) {
+                    payload.name = memberData.username
+                }
+                
+                if (memberData.avatarUrl && (!currentMember || memberData.avatarUrl !== currentMember.avatarUrl)) {
+                    payload.portrait_image = memberData.avatarUrl
+                }
+                
+                // Only call API if there are changes
+                if (Object.keys(payload).length > 0) {
+                    const result = await this.poolAdminStore.updateUser(parseInt(memberData.id), payload)
+                    
+                    if (!result.success) {
+                        ElMessage.error(result.error || 'Failed to update user')
+                        return
+                    }
+                }
+                
+                ElMessage.success(`Member "${memberData.username}" updated successfully!`)
+                
+                // Refresh members list
+                await this.refreshPoolAdminMembers()
+                
+            } catch (e) {
+                ElMessage.error(`Network error: ${e?.message || e}`)
+            }
+        },
+        
+        async handlePoolAdminLogout() {
+            // Use the router from setup
+            await this.poolAdminStore.logout()
             this.router.push('/login')
+            // Optionally reload for a clean state
+            window.location.reload()
         }
     },
 

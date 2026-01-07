@@ -121,7 +121,7 @@ interface Props {
   deviceId?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   isAdmin: false,
   isSuperadmin: false,
   isPoolAdmin: false,
@@ -200,9 +200,12 @@ const options: OptionItem[] = [
 const handleOptionClick = (option: OptionItem) => {
   activeOption.value = option.id
   if (option.id === 'logout') {
-    emit('logout')
-  } else if (option.id === 'pool-admin-logout') {
-    emit('pool-admin-logout')
+    // Pool admin has its own logout handler
+    if (props.isPoolAdmin) {
+      emit('pool-admin-logout')
+    } else {
+      emit('logout')
+    }
   } else {
     emit('option-click', option)
   }

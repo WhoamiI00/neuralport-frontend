@@ -173,11 +173,8 @@
                 <div class="user-name">{{ user.name }}</div>
                 <div class="user-details">
                   <span class="pin">PIN: {{ user.pin }}</span>
-                  <span class="home-device">Home: {{ user.home_device }}</span>
+                  <span class="home-device">Root VR: {{ user.home_device }}</span>
                 </div>
-              </div>
-              <div class="user-stats">
-                <span>{{ user.score_count || 0 }} sessions</span>
               </div>
             </div>
           </div>
@@ -516,10 +513,16 @@ async function selectPool(pool: VRPool) {
   activeTab.value = 'devices'
   
   try {
-    const detail = await getPoolDetail(pool.id)
+    const [detail, admins, tags] = await Promise.all([
+      getPoolDetail(pool.id),
+      listPoolAdmins(pool.id),
+      getPoolTags(pool.id)
+    ])
     poolDevices.value = detail.devices
     poolUsers.value = detail.users
     poolConflicts.value = detail.conflicts
+    poolAdmins.value = admins
+    availableTags.value = tags
   } catch (error) {
     console.error('Failed to load pool detail:', error)
     ElMessage.error('Failed to load pool details')
