@@ -55,6 +55,15 @@
                         <button 
                             type="button"
                             class="mode-btn"
+                            :class="{ active: loginMode === 'poolAdmin' }"
+                            @click="loginMode = 'poolAdmin'"
+                        >
+                            <i class="mdi mdi-account-group"></i>
+                            Team Admin
+                        </button>
+                        <button 
+                            type="button"
+                            class="mode-btn"
                             :class="{ active: loginMode === 'superadmin' }"
                             @click="loginMode = 'superadmin'"
                         >
@@ -129,6 +138,60 @@
                                 :disabled="loading"
                             >
                                 <span class="btn-text">{{ loading ? '' : t('auth.signIn') }}</span>
+                                <span v-if="loading" class="btn-loader"></span>
+                            </button>
+
+                            <Transition name="error-slide">
+                                <div v-if="error" class="error-message">
+                                    {{ error }}
+                                </div>
+                            </Transition>
+                        </form>
+
+                        <!-- Pool Admin (Team Admin) Login Form -->
+                        <form v-else-if="loginMode === 'poolAdmin'" key="pool-admin-form" class="auth-form" @submit.prevent="handlePoolAdminLogin">
+                            <h1 class="form-title">Team Admin Portal</h1>
+                            <p class="form-subtitle">Manage your team across devices</p>
+
+                            <div class="input-group">
+                                <input 
+                                    type="email" 
+                                    v-model="poolAdminForm.email"
+                                    placeholder=" "
+                                    required
+                                    autocomplete="email"
+                                />
+                                <label>Email Address</label>
+                                <span class="input-highlight"></span>
+                            </div>
+
+                            <div class="input-group">
+                                <input 
+                                    :type="showPoolAdminPassword ? 'text' : 'password'"
+                                    v-model="poolAdminForm.password"
+                                    placeholder=" "
+                                    required
+                                    autocomplete="current-password"
+                                />
+                                <label>Password</label>
+                                <span class="input-highlight"></span>
+                                <button 
+                                    type="button"
+                                    class="toggle-password-btn"
+                                    @click="showPoolAdminPassword = !showPoolAdminPassword"
+                                    tabindex="-1"
+                                >
+                                    <i class="mdi" :class="showPoolAdminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
+                                </button>
+                            </div>
+
+                            <button 
+                                type="submit" 
+                                class="submit-btn" 
+                                :class="{ 'is-loading': loading }"
+                                :disabled="loading"
+                            >
+                                <span class="btn-text">{{ loading ? '' : 'Sign In' }}</span>
                                 <span v-if="loading" class="btn-loader"></span>
                             </button>
 
@@ -222,12 +285,14 @@ import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
+import { usePoolAdminStore } from '../stores/poolAdmin'
 import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import LanguageToggle from '../components/zen/LanguageToggle.vue'
 
 const authStore = useAuthStore()
 const superadminStore = useSuperadminStore()
+const poolAdminStore = usePoolAdminStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -236,10 +301,11 @@ const isPageLoaded = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-// Login mode: 'user' or 'superadmin'
-const loginMode = ref<'user' | 'superadmin'>('user')
+// Login mode: 'user', 'poolAdmin', or 'superadmin'
+const loginMode = ref<'user' | 'poolAdmin' | 'superadmin'>('user')
 const showRegister = ref(false)
 const showSuperadminPassword = ref(false)
+const showPoolAdminPassword = ref(false)
 
 // Theme management
 const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
@@ -258,6 +324,12 @@ const superadminForm = reactive({
     email: '',
     password: '',
     name: ''
+})
+
+// Pool Admin form data
+const poolAdminForm = reactive({
+    email: '',
+    password: ''
 })
 
 const showAdminSetup = ref(false)
@@ -319,6 +391,27 @@ async function handleSuperadminLogin() {
         router.push('/dashboard')
     } catch (e: any) {
         error.value = e?.message ?? (showRegister.value ? 'Registration failed' : 'Login failed')
+    } finally {
+        loading.value = false
+    }
+}
+
+// Handle pool admin (team admin) login
+async function handlePoolAdminLogin() {
+    error.value = ''
+    loading.value = true
+    try {
+        const result = await poolAdminStore.login(poolAdminForm.email, poolAdminForm.password)
+        
+        if (!result.success) {
+            error.value = result.error || 'Login failed'
+            return
+        }
+        
+        // Redirect to dashboard on success
+        router.push('/dashboard')
+    } catch (e: any) {
+        error.value = e?.message ?? 'Login failed'
     } finally {
         loading.value = false
     }

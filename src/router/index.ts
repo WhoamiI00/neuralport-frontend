@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
+import { usePoolAdminStore } from '../stores/poolAdmin'
 
 // Lazy-loaded routes for better initial load performance
 // Each view is loaded only when the user navigates to it
@@ -53,6 +54,7 @@ const router = createRouter({
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
   const superadminStore = useSuperadminStore()
+  const poolAdminStore = usePoolAdminStore()
   
   // Initialize stores if loading
   if (authStore.loading) {
@@ -64,8 +66,13 @@ router.beforeEach(async (to, _from, next) => {
     superadminStore.initialize()
   }
   
-  // Check if user is authenticated (either regular user or superadmin)
-  const isAuthenticated = authStore.isAuthenticated || superadminStore.isAuthenticated
+  // Initialize pool admin store from localStorage
+  if (poolAdminStore.loading) {
+    poolAdminStore.initialize()
+  }
+  
+  // Check if user is authenticated (regular user, superadmin, or pool admin)
+  const isAuthenticated = authStore.isAuthenticated || superadminStore.isAuthenticated || poolAdminStore.isAuthenticated
 
   // Only validate token if coming from login or on first load
   // Don't validate on every navigation to avoid excessive API calls

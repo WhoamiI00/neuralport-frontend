@@ -69,6 +69,24 @@
 
       <!-- Dynamic Content based on Mode -->
       <div class="sidebar-content">
+        <!-- Pool Admin Info Header -->
+        <div v-if="isPoolAdmin && poolAdminInfo" class="device-selector pool-admin-header">
+          <div class="device-header">
+            <div class="device-header-content">
+              <i class="mdi mdi-account-group"></i>
+              <span>Team Admin</span>
+            </div>
+          </div>
+          <div class="pool-admin-info">
+            <div class="pool-name">{{ poolAdminInfo.pool?.name }}</div>
+            <div class="pool-email">{{ poolAdminInfo.email }}</div>
+            <div v-if="poolAdminInfo.tag_names?.length" class="pool-tags">
+              <span v-for="tag in poolAdminInfo.tag_names" :key="tag" class="pool-tag">{{ tag }}</span>
+            </div>
+          </div>
+          <div class="device-divider"></div>
+        </div>
+
         <!-- Superadmin Device Selector -->
         <div v-if="isSuperadmin" class="device-selector">
           <div 
@@ -122,6 +140,8 @@
             :selected-member-id="selectedMemberId"
             :is-admin="isAdmin"
             :is-superadmin="isSuperadmin"
+            :is-pool-admin="isPoolAdmin"
+            :pool-devices="poolDevices"
             @select-member="handleMemberSelect"
             @view-details="handleViewDetails"
             @create-user="handleCreateUser"
@@ -133,13 +153,18 @@
             key="options"
             :is-admin="isAdmin"
             :is-superadmin="isSuperadmin"
+            :is-pool-admin="isPoolAdmin"
             :superadmin-email="superadminEmail"
+            :pool-admin-email="poolAdminInfo?.email || ''"
+            :pool-name="poolAdminInfo?.pool?.name || ''"
             :vr-name="vrName"
             :device-id="deviceId"
             @option-click="handleOptionClick"
             @edit-vr-name="handleEditVrName"
             @logout="handleLogout"
             @manage-tags="handleManageTags"
+            @manage-pools="handleManagePools"
+            @pool-admin-logout="emit('pool-admin-logout')"
           />
         </transition>
       </div>
@@ -190,6 +215,10 @@ interface Props {
   isSuperadmin?: boolean
   devices?: Array<{ id: number; device_id: string; vr_name?: string }>
   selectedDeviceId?: number | null
+  // Pool admin props
+  isPoolAdmin?: boolean
+  poolAdminInfo?: { name?: string; email: string; pool: { name: string }; tag_names: string[] } | null
+  poolDevices?: Array<{ id: number; name: string; device_id: string }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -199,21 +228,27 @@ const props = withDefaults(defineProps<Props>(), {
   deviceId: '',
   isSuperadmin: false,
   devices: () => [],
-  selectedDeviceId: null
+  selectedDeviceId: null,
+  isPoolAdmin: false,
+  poolAdminInfo: null,
+  poolDevices: () => []
 })
 
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'deselect-member'): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number }): void
   (e: 'edit-vr-name'): void
   (e: 'manage-tags'): void
+  (e: 'manage-pools'): void
   // Superadmin events
   (e: 'select-device', deviceId: number): void
   (e: 'add-device'): void
   (e: 'remove-device', deviceId: number): void
   (e: 'superadmin-logout'): void
+  // Pool admin events
+  (e: 'pool-admin-logout'): void
 }>()
 
 const router = useRouter()
@@ -347,6 +382,13 @@ const handleEditVrName = () => {
 
 const handleManageTags = () => {
   emit('manage-tags')
+  if (isMobile.value) {
+    closeMobile()
+  }
+}
+
+const handleManagePools = () => {
+  emit('manage-pools')
   if (isMobile.value) {
     closeMobile()
   }
@@ -747,6 +789,55 @@ onUnmounted(() => {
 .device-selector {
   padding: 0 $space-4;
   margin-bottom: 0;
+}
+
+// ─────────────────────────────────────────────────────────────
+// POOL ADMIN HEADER
+// ─────────────────────────────────────────────────────────────
+
+.pool-admin-header {
+  .device-header {
+    background: linear-gradient(135deg, #0891b2, #22d3ee);
+    cursor: default;
+    
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+  
+  .pool-admin-info {
+    padding: $space-2 $space-3;
+    margin-bottom: $space-3;
+    
+    .pool-name {
+      font-size: $text-body-sm;
+      font-weight: $font-weight-semibold;
+      color: var(--zen-text-heading);
+      margin-bottom: $space-1;
+    }
+    
+    .pool-email {
+      font-size: $text-body-xs;
+      color: var(--zen-text-muted);
+      margin-bottom: $space-2;
+    }
+    
+    .pool-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $space-1;
+      
+      .pool-tag {
+        font-size: 10px;
+        padding: 2px 8px;
+        background: rgba(var(--zen-accent-teal-rgb), 0.15);
+        color: var(--zen-accent-teal-dark);
+        border-radius: $radius-full;
+        font-weight: $font-weight-medium;
+      }
+    }
+  }
 }
 
 .device-header {

@@ -23,7 +23,7 @@ function deduplicatedFetch<T>(key: string, fetchFn: () => Promise<T>): Promise<T
   return request
 }
 
-// Helper to get auth headers - supports both regular auth and superadmin auth
+// Helper to get auth headers - supports regular auth, superadmin auth, and pool admin auth
 function getAuthHeaders() {
   // Check for regular auth token first
   let token = localStorage.getItem('auth_token')
@@ -31,6 +31,11 @@ function getAuthHeaders() {
   // Fall back to superadmin token if no regular token
   if (!token) {
     token = localStorage.getItem('superadmin_token')
+  }
+  
+  // Fall back to pool admin token
+  if (!token) {
+    token = localStorage.getItem('pool_admin_token')
   }
   
   if (!token) {
@@ -237,9 +242,10 @@ export async function getLatestScore(tenantId: number, userId: number): Promise<
 
 export interface UserProfile {
   id: number
-  pin: string
+  username: string  // This is actually the PIN (backend aliases pin as username for compatibility)
   tenant_id: number
-  device_id: string
+  device_id?: string
+  serializedProfile?: string  // JSON string containing name, portrait_image, etc.
   name?: string
   uniform_number?: string | number
   portrait_image?: string
@@ -421,6 +427,299 @@ export async function removeTagFromUser(userId: number, tagId: number): Promise<
   await handleApiResponse(response)
 }
 
+// ============================================================================
+// VR POOL / TEAM UNIT API (Superadmin only)
+// ============================================================================
+
+export interface VRPool {
+  id: number
+  name: string
+  description?: string | null
+  is_active: boolean
+  created_at: string
+  updated_at?: string
+  device_count: number
+  user_count: number
+}
+
+export interface PoolDevice {
+  id: number
+  device_id: string
+  name: string
+  user_count?: number
+  is_current?: boolean
+  created_at?: string
+}
+
+export interface PoolUser {
+  id: number
+  pin: string
+  name: string
+  portrait_image?: string | null
+  uniform_number?: number | null
+  home_device: string
+  home_tenant_id: number
+  home_device_id?: string
+  score_count?: number
+}
+
+export interface PinConflict {
+  pin: string
+  users: {
+    user_id: number
+    user_name: string
+    device_name: string
+    device_id?: string
+    tenant_id: number
+    portrait_image?: string | null
+  }[]
+  user_count?: number
+}
+
+export interface PoolDetailResponse {
+  pool: VRPool
+  devices: PoolDevice[]
+  users: PoolUser[]
+  conflicts: PinConflict[]
+  has_conflicts: boolean
+}
+
+// List all pools owned by superadmin
+export async function listPools(): Promise<VRPool[]> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  const data = await handleApiResponse(response)
+  return data.pools || []
+}
+
+// Create a new pool
+export async function createPool(name: string, description?: string): Promise<VRPool> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ name, description })
+  })
+
+  const data = await handleApiResponse(response)
+  return data.pool
+}
+
+// Get pool details with devices and users
+export async function getPoolDetail(poolId: number): Promise<PoolDetailResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Update pool
+export async function updatePool(poolId: number, data: { name: string; description?: string; is_active?: boolean }): Promise<VRPool> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data)
+  })
+
+  const result = await handleApiResponse(response)
+  return result.pool
+}
+
+// Delete pool
+export async function deletePool(poolId: number): Promise<{ message: string; devices_removed: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Add device to pool
+export async function addDeviceToPool(poolId: number, deviceId: string | number): Promise<{
+  device: PoolDevice
+  conflicts?: PinConflict[]
+  has_conflicts?: boolean
+  warning?: string
+}> {
+  const body = typeof deviceId === 'number' 
+    ? { tenant_id: deviceId }
+    : { device_id: deviceId }
+    
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/devices`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body)
+  })
+
+  return handleApiResponse(response)
+}
+
+// Remove device from pool
+export async function removeDeviceFromPool(poolId: number, deviceId: string | number): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/devices/${deviceId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Get PIN conflicts in pool
+export async function getPoolConflicts(poolId: number): Promise<{
+  pool: { id: number; name: string }
+  conflicts: PinConflict[]
+  total_conflicts: number
+  has_conflicts: boolean
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/conflicts`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Get pool users
+export async function getPoolUsers(poolId: number, deviceFilter?: string): Promise<{
+  pool: { id: number; name: string }
+  users: PoolUser[]
+  total: number
+  filter_device?: string
+}> {
+  let url = `${API_BASE_URL}/api/superadmin/pools/${poolId}/users`
+  if (deviceFilter) {
+    url += `?device_id=${encodeURIComponent(deviceFilter)}`
+  }
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Get pool scores
+export async function getPoolScores(
+  poolId: number, 
+  options?: { device_id?: string; pin?: string; limit?: number; offset?: number }
+): Promise<{
+  pool: { id: number; name: string }
+  scores: Score[]
+  total: number
+  filters: { device_id?: string; pin?: string }
+}> {
+  let url = `${API_BASE_URL}/api/superadmin/pools/${poolId}/scores`
+  const params = new URLSearchParams()
+  
+  if (options?.device_id) params.append('device_id', options.device_id)
+  if (options?.pin) params.append('pin', options.pin)
+  if (options?.limit) params.append('limit', options.limit.toString())
+  if (options?.offset) params.append('offset', options.offset.toString())
+  
+  const queryString = params.toString()
+  if (queryString) url += `?${queryString}`
+  
+  const response = await fetch(url, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// ============================================================================
+// POOL ADMIN MANAGEMENT API (Superadmin only)
+// ============================================================================
+
+export interface PoolAdmin {
+  id: number
+  pool_id: number
+  email: string
+  name: string | null
+  assigned_tags: string[]
+  tag_names?: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string | null
+}
+
+// List pool admins for a pool
+export async function listPoolAdmins(poolId: number): Promise<PoolAdmin[]> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/admins`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  const data = await handleApiResponse(response)
+  return data.admins || []
+}
+
+// Create pool admin
+export async function createPoolAdmin(
+  poolId: number, 
+  data: { email: string; password: string; name?: string; assigned_tags?: string[] }
+): Promise<PoolAdmin> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/admins`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data)
+  })
+
+  const result = await handleApiResponse(response)
+  return result.admin
+}
+
+// Update pool admin
+export async function updatePoolAdmin(
+  poolId: number, 
+  adminId: number, 
+  data: { email?: string; password?: string; name?: string; assigned_tags?: string[]; is_active?: boolean }
+): Promise<PoolAdmin> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/admins/${adminId}`, {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(data)
+  })
+
+  const result = await handleApiResponse(response)
+  return result.admin
+}
+
+// Delete pool admin
+export async function deletePoolAdmin(poolId: number, adminId: number): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/admins/${adminId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  return handleApiResponse(response)
+}
+
+// Get available tags for pool (all tags owned by superadmin)
+export async function getPoolTags(poolId: number): Promise<{ id: string; name: string }[]> {
+  const response = await fetch(`${API_BASE_URL}/api/superadmin/pools/${poolId}/tags`, {
+    headers: getAuthHeaders(),
+    credentials: 'include'
+  })
+
+  const data = await handleApiResponse(response)
+  return data.tags || []
+}
+
 // Export convenience object with all API functions
 export const api = {
   // Profile
@@ -445,5 +744,22 @@ export const api = {
   deleteTag,
   getTagSuggestions,
   assignTagsToUser,
-  removeTagFromUser
+  removeTagFromUser,
+  // Pools / Team Units
+  listPools,
+  createPool,
+  getPoolDetail,
+  updatePool,
+  deletePool,
+  addDeviceToPool,
+  removeDeviceFromPool,
+  getPoolConflicts,
+  getPoolUsers,
+  getPoolScores,
+  // Pool Admins
+  listPoolAdmins,
+  createPoolAdmin,
+  updatePoolAdmin,
+  deletePoolAdmin,
+  getPoolTags
 }

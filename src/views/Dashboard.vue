@@ -4,22 +4,27 @@
     <Sidebar 
       :members="members" 
       :selected-member-id="selectedMemberId"
-      :is-admin="isAdmin"
+      :is-admin="isAdmin || isPoolAdmin"
       :vr-name="vrName"
       :device-id="deviceId"
       :is-superadmin="isSuperadmin"
+      :is-pool-admin="isPoolAdmin"
+      :pool-admin-info="poolAdminStore.poolAdmin"
+      :pool-devices="poolAdminDevices"
       :devices="superadminDevices"
       :selected-device-id="selectedDeviceId"
       @select-member="handleMemberSelect"
       @deselect-member="handleMemberDeselect"
       @view-details="navigateToUserDetails"
-      @create-user="handleCreateUser"
+      @create-user="isPoolAdmin ? handlePoolAdminCreateUser($event) : handleCreateUser($event)"
       @edit-vr-name="showEditVrModal = true"
       @manage-tags="showTagManager = true"
+      @manage-pools="showPoolManager = true"
       @select-device="handleSelectDevice"
       @add-device="showAddDeviceModal = true"
       @remove-device="handleRemoveDevice"
       @superadmin-logout="handleSuperadminLogout"
+      @pool-admin-logout="handlePoolAdminLogout"
     />
 
     <!-- Main Content -->
@@ -59,6 +64,7 @@
                 :user-id="String(selectedMemberId)"
                 :is-admin="isAdmin"
                 :is-superadmin="isSuperadmin"
+                :is-pool-admin="isPoolAdmin"
                 @close="handleMemberDeselect"
                 @tags-updated="handleTagsChanged"
                 @member-updated="handleUpdateMember"
@@ -280,6 +286,21 @@
         v-model:visible="showTagManager"
         @refresh="handleTagsChanged"
       />
+
+      <!-- Pool Manager Modal - only for superadmins -->
+      <el-dialog
+        v-model="showPoolManager"
+        title=""
+        width="800px"
+        :close-on-click-modal="false"
+        class="pool-manager-dialog"
+      >
+        <PoolManager 
+          v-if="isSuperadmin"
+          :devices="superadminDevices"
+          @pool-updated="handlePoolUpdated"
+        />
+      </el-dialog>
     </Teleport>
   </div>
 </template>
@@ -292,6 +313,7 @@ import { useTheme } from '../composables/useTheme'
 import { useLanguage } from '../composables/useLanguage'
 import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
+import { usePoolAdminStore } from '../stores/poolAdmin'
 import { API_BASE_URL, getUsersByGroup, getLatestScore, listScores, listTenantScores, getUser, createUser, renameUser, updateAvatar } from '../lib/api'
 import { fetchWithCache } from '../lib/cache'
 // Tree-shake echarts - only import what we use
@@ -320,6 +342,7 @@ import CustomLoader from '../components/zen/CustomLoader.vue'
 // Lazy load modals - they're not needed on initial render
 const TagManager = defineAsyncComponent(() => import('../components/zen/TagManager.vue'))
 const UserDetailPanel = defineAsyncComponent(() => import('../components/zen/UserDetailPanel.vue'))
+const PoolManager = defineAsyncComponent(() => import('../components/zen/PoolManager.vue'))
 
 export default defineComponent({
     name: "Dashboard",
@@ -330,7 +353,8 @@ export default defineComponent({
         MemberSummaryCard,
         CustomLoader,
         TagManager,
-        UserDetailPanel
+        UserDetailPanel,
+        PoolManager
     },
     props: {
         login_user_id_from_path: { type: String, required: false }
@@ -340,12 +364,14 @@ export default defineComponent({
         const { t } = useLanguage()
         const router = useRouter()
         const superadminStore = useSuperadminStore()
+        const poolAdminStore = usePoolAdminStore()
         
         return {
             isDark,
             t,
             router,
-            superadminStore
+            superadminStore,
+            poolAdminStore
         }
     },
     data() {
@@ -390,7 +416,10 @@ export default defineComponent({
             newDeviceId: '',
             
             // Tag management
-            showTagManager: false
+            showTagManager: false,
+            
+            // Pool management (superadmin only)
+            showPoolManager: false
         }
     },
     computed: {
@@ -405,6 +434,14 @@ export default defineComponent({
         
         isSuperadmin() {
             return this.superadminStore.isAuthenticated
+        },
+        
+        isPoolAdmin() {
+            return this.poolAdminStore.isAuthenticated
+        },
+        
+        poolAdminDevices() {
+            return this.poolAdminStore.devices
         },
         
         superadminDevices() {
@@ -912,6 +949,17 @@ export default defineComponent({
         
         // ========== END TAG MANAGEMENT ==========
         
+        // ========== POOL MANAGEMENT ==========
+        
+        async handlePoolUpdated() {
+            // Refresh devices list when pools are updated
+            if (this.isSuperadmin) {
+                await this.superadminStore.fetchDevices()
+            }
+        },
+        
+        // ========== END POOL MANAGEMENT ==========
+        
         async fetchChartData() {
             let lineData = []
             let barData = []
@@ -935,6 +983,13 @@ export default defineComponent({
             }
 
             try {
+                // Pool admin mode: skip chart data or use pool admin API
+                if (this.isPoolAdmin) {
+                    // For pool admin, chart is not needed (UserDetailPanel handles individual user data)
+                    // Return empty data to avoid calling regular auth endpoints
+                    return { lineData: [], barData: [], start, end }
+                }
+                
                 // If a specific member is selected (admin or regular user), fetch only their scores
                 // If admin with no member selected, fetch all scores for the VR device (tenant)
                 const authStore = useAuthStore()
@@ -1329,6 +1384,111 @@ export default defineComponent({
             // This eliminates duplicate API calls
             this.loading = false
             // Don't call initChart1 - the chart section is hidden when member is selected
+        },
+        
+        // ========== POOL ADMIN METHODS ==========
+        
+        async loadPoolAdminData(savedMemberId) {
+            this.loading = true
+            try {
+                // Load pool admin users filtered by tags
+                await this.poolAdminStore.fetchUsers()
+                await this.poolAdminStore.fetchTags()
+                await this.poolAdminStore.fetchDevices()
+                
+                // Transform pool users to members format for sidebar
+                this.members = this.poolAdminStore.users.map(u => ({
+                    id: String(u.id),
+                    name: u.name || `User ${u.id}`,
+                    avatarUrl: u.portrait_image || null,
+                    tenantId: u.tenant_id,
+                    deviceName: u.device_name,
+                    tags: u.tags || []
+                }))
+                
+                // Update global stats
+                this.globalStats = {
+                    totalUsers: this.members.length,
+                    totalSessions: 0,
+                    avgFatigueScore: 'N/A',
+                    standardDeviation: 'N/A'
+                }
+                
+                // Set VR name to pool name
+                this.vrName = this.poolAdminStore.poolName || 'Team Admin'
+                
+                // Restore selected member after members are loaded
+                if (savedMemberId && this.members.some(m => m.id === savedMemberId)) {
+                    this.selectedMemberId = savedMemberId
+                }
+            } catch (e) {
+                console.error('Pool admin data load error:', e)
+                ElMessage.error(`Failed to load pool admin data: ${e?.message || e}`)
+            }
+            this.loading = false
+            await this.$nextTick()
+            await this.initChart1()
+        },
+        
+        async refreshPoolAdminMembers() {
+            try {
+                await this.poolAdminStore.fetchUsers()
+                
+                this.members = this.poolAdminStore.users.map(u => ({
+                    id: String(u.id),
+                    name: u.name || `User ${u.id}`,
+                    avatarUrl: u.portrait_image || null,
+                    tenantId: u.tenant_id,
+                    deviceName: u.device_name,
+                    tags: u.tags || []
+                }))
+                
+                this.globalStats.totalUsers = this.members.length
+            } catch (e) {
+                console.error('Failed to refresh pool admin members:', e)
+            }
+        },
+        
+        async handlePoolAdminCreateUser(userData) {
+            // userData contains: { pin, username, avatar, avatarUrl, tenantId }
+            
+            if (!this.poolAdminStore.isAuthenticated) {
+                ElMessage.error('Pool admin authentication required')
+                return
+            }
+            
+            // Pool admin needs to select a device
+            if (!userData.tenantId) {
+                ElMessage.error('Please select a device for the new user')
+                return
+            }
+            
+            try {
+                const result = await this.poolAdminStore.createUser({
+                    tenant_id: userData.tenantId,
+                    pin: userData.pin,
+                    name: userData.username,
+                    portrait_image: userData.avatarUrl || null
+                })
+                
+                if (!result.success) {
+                    ElMessage.error(result.error || 'Failed to create user')
+                    return
+                }
+                
+                ElMessage.success(`User "${userData.username}" created successfully!`)
+                
+                // Refresh members
+                await this.refreshPoolAdminMembers()
+                
+            } catch (e) {
+                ElMessage.error(`Network error: ${e?.message || e}`)
+            }
+        },
+        
+        handlePoolAdminLogout() {
+            this.poolAdminStore.logout()
+            this.router.push('/login')
         }
     },
 
@@ -1337,6 +1497,13 @@ export default defineComponent({
         
         // Restore selectedMemberId from localStorage
         const savedMemberId = localStorage.getItem('dashboard_selectedMemberId')
+        
+        // Check if we're in pool admin mode
+        if (this.isPoolAdmin) {
+            await this.loadPoolAdminData(savedMemberId)
+            window.addEventListener("resize", this.__resizeHandler)
+            return
+        }
         
         // Check if we're in superadmin mode
         if (this.isSuperadmin) {
@@ -2153,5 +2320,22 @@ export default defineComponent({
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+// Pool Manager Dialog - theme-aware styling
+:deep(.pool-manager-dialog) {
+  .el-dialog {
+    background: var(--zen-surface);
+    border-radius: 16px;
+    box-shadow: var(--zen-shadow-xl);
+    
+    .el-dialog__header {
+      display: none; // We use custom header in PoolManager
+    }
+    
+    .el-dialog__body {
+      padding: 0;
+    }
+  }
 }
 </style>

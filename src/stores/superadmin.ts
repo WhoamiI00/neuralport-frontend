@@ -176,9 +176,18 @@ export const useSuperadminStore = defineStore('superadmin', () => {
     selectedDeviceId.value = null
     dashboardStats.value = null
     
-    localStorage.removeItem('superadmin_token')
-    localStorage.removeItem('superadmin_user')
-    localStorage.removeItem('superadmin_selected_device')
+    // Clear all localStorage except theme and language preferences
+    const preserveKeys = ['zen-theme', 'zen-language']
+    const keysToRemove: string[] = []
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && !preserveKeys.includes(key)) {
+        keysToRemove.push(key)
+      }
+    }
+    
+    keysToRemove.forEach(key => localStorage.removeItem(key))
   }
 
   // Fetch current superadmin info

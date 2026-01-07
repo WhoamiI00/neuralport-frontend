@@ -22,6 +22,25 @@
 
             <!-- Body -->
             <form class="modal-body" @submit.prevent="handleSubmit">
+              <!-- Device Selector (Pool Admin only) -->
+              <div v-if="isPoolAdmin && devices.length > 0" class="form-group full-width device-selector-group">
+                <label class="form-label">
+                  <i class="mdi mdi-virtual-reality"></i>
+                  Select Device
+                </label>
+                <select
+                  v-model="formData.selectedDeviceId"
+                  class="form-input"
+                  :class="{ 'error': errors.device }"
+                >
+                  <option :value="null" disabled>-- Select a device --</option>
+                  <option v-for="device in devices" :key="device.id" :value="device.id">
+                    {{ device.name || device.device_id }}
+                  </option>
+                </select>
+                <span v-if="errors.device" class="error-message">{{ errors.device }}</span>
+              </div>
+
               <!-- Avatar Upload Section -->
               <div class="avatar-section">
                 <label class="form-label">
@@ -145,10 +164,14 @@ import { ElMessage } from 'element-plus'
 interface Props {
   modelValue: boolean
   existingPins?: string[]  // List of existing member PINs to check for duplicates
+  devices?: Array<{ id: number; name: string; device_id: string }>  // Pool admin devices
+  isPoolAdmin?: boolean  // Whether this is pool admin mode
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  existingPins: () => []
+  existingPins: () => [],
+  devices: () => [],
+  isPoolAdmin: false
 })
 
 const emit = defineEmits<{
@@ -158,6 +181,7 @@ const emit = defineEmits<{
     username: string
     avatar: File | null
     avatarUrl: string | null
+    tenantId?: number
   }): void
 }>()
 
@@ -172,13 +196,15 @@ const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 const formData = reactive({
   pin: '',
   username: '',
-  avatarUrl: ''
+  avatarUrl: '',
+  selectedDeviceId: null as number | null
 })
 
 const errors = reactive({
   pin: '',
   username: '',
-  avatarUrl: ''
+  avatarUrl: '',
+  device: ''
 })
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -232,6 +258,10 @@ watch(() => formData.avatarUrl, (val) => {
 
 // Computed
 const isFormValid = computed(() => {
+  // Pool admin requires device selection
+  if (props.isPoolAdmin && !formData.selectedDeviceId) {
+    return false
+  }
   return (
     formData.pin.length === 4 &&
     formData.username.trim().length >= 2 &&
@@ -359,6 +389,12 @@ const handleSubmit = async () => {
   validatePin()
   validateUsername()
   
+  // Pool admin requires device selection
+  if (props.isPoolAdmin && !formData.selectedDeviceId) {
+    errors.device = 'Please select a device'
+    return
+  }
+  
   if (!isFormValid.value) {
     return
   }
@@ -371,7 +407,8 @@ const handleSubmit = async () => {
       pin: formData.pin,
       username: formData.username.trim(),
       avatar: null,
-      avatarUrl: formData.avatarUrl.trim() || null
+      avatarUrl: formData.avatarUrl.trim() || null,
+      tenantId: formData.selectedDeviceId || undefined
     })
     
     // Close modal after successful submission
@@ -385,9 +422,11 @@ const resetForm = () => {
   formData.pin = ''
   formData.username = ''
   formData.avatarUrl = ''
+  formData.selectedDeviceId = null
   errors.pin = ''
   errors.username = ''
   errors.avatarUrl = ''
+  errors.device = ''
   avatarPreview.value = null
   isSubmitting.value = false
   isUploading.value = false

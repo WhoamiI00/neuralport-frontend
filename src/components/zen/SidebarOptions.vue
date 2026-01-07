@@ -34,9 +34,24 @@
         </transition>
       </div>
 
-      <!-- VR Name Display (clickable/editable for admin only, hidden in superadmin mode) -->
+      <!-- Pool Admin Display (when in pool admin mode) -->
+      <div
+        v-else-if="isPoolAdmin && poolAdminEmail"
+        class="option-item vr-name-option non-clickable"
+      >
+        <i class="mdi mdi-account-group"></i>
+        <transition name="fade">
+          <span class="option-label">
+            <span class="vr-label">Team Admin</span>
+            <span class="vr-value">{{ poolAdminEmail }}</span>
+            <span v-if="poolName" class="device-id">{{ poolName }}</span>
+          </span>
+        </transition>
+      </div>
+
+      <!-- VR Name Display (clickable/editable for admin only, hidden in superadmin/pooladmin mode) -->
       <button
-        v-else-if="vrName"
+        v-else-if="vrName && !isPoolAdmin"
         class="option-item vr-name-option"
         :class="{ 'non-clickable': !isAdmin }"
         @click="isAdmin ? handleEditVrName() : null"
@@ -52,21 +67,21 @@
         <i v-if="isAdmin" class="mdi mdi-pencil edit-icon"></i>
       </button>
 
-      <div v-if="(isSuperadmin && superadminEmail) || vrName" class="options-divider"></div>
+      <div v-if="(isSuperadmin && superadminEmail) || (isPoolAdmin && poolAdminEmail) || vrName" class="options-divider"></div>
 
-      <!-- Admin-only: Manage Tags -->
+      <!-- Superadmin-only: Manage Pools -->
       <button
-        v-if="isAdmin && !isSuperadmin"
+        v-if="isSuperadmin"
         class="option-item"
-        @click="emit('manage-tags')"
+        @click="emit('manage-pools')"
       >
-        <i class="mdi mdi-tag-multiple"></i>
+        <i class="mdi mdi-domain"></i>
         <transition name="fade">
-          <span class="option-label">Manage Tags</span>
+          <span class="option-label">Manage Pools</span>
         </transition>
       </button>
 
-      <div v-if="isAdmin && !isSuperadmin" class="options-divider"></div>
+      <div v-if="isSuperadmin" class="options-divider"></div>
 
       <button
         v-for="option in options"
@@ -98,7 +113,10 @@ interface OptionItem {
 interface Props {
   isAdmin?: boolean
   isSuperadmin?: boolean
+  isPoolAdmin?: boolean
   superadminEmail?: string
+  poolAdminEmail?: string
+  poolName?: string
   vrName?: string
   deviceId?: string
 }
@@ -106,7 +124,10 @@ interface Props {
 withDefaults(defineProps<Props>(), {
   isAdmin: false,
   isSuperadmin: false,
+  isPoolAdmin: false,
   superadminEmail: '',
+  poolAdminEmail: '',
+  poolName: '',
   vrName: '',
   deviceId: ''
 })
@@ -117,6 +138,8 @@ const emit = defineEmits<{
   (e: 'edit-vr-name'): void
   (e: 'logout'): void
   (e: 'manage-tags'): void
+  (e: 'manage-pools'): void
+  (e: 'pool-admin-logout'): void
 }>()
 
 const { isDark, toggleTheme } = useTheme()
@@ -178,6 +201,8 @@ const handleOptionClick = (option: OptionItem) => {
   activeOption.value = option.id
   if (option.id === 'logout') {
     emit('logout')
+  } else if (option.id === 'pool-admin-logout') {
+    emit('pool-admin-logout')
   } else {
     emit('option-click', option)
   }

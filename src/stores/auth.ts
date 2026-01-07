@@ -90,8 +90,19 @@ export const useAuthStore = defineStore('auth', () => {
     
     token.value = null
     user.value = null
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
+    
+    // Clear all localStorage except theme and language preferences
+    const preserveKeys = ['zen-theme', 'zen-language']
+    const keysToRemove: string[] = []
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && !preserveKeys.includes(key)) {
+        keysToRemove.push(key)
+      }
+    }
+    
+    keysToRemove.forEach(key => localStorage.removeItem(key))
   }
 
   async function fetchCurrentUser() {

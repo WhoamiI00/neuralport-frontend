@@ -4,44 +4,85 @@
     <div class="list-header">
       <span class="list-title">{{ t('dashboard.members') }}</span>
       <span class="member-count">
-        {{ selectedTagIds.length > 0 ? `${filteredMembers.length} / ${members.length}` : members.length }}
+        {{ filteredMembers.length !== members.length ? `${filteredMembers.length} / ${members.length}` : members.length }}
       </span>
     </div>
 
-    <!-- Tag Filter -->
-    <div v-if="isAdmin || isSuperadmin" class="tag-filter">
-      <div class="filter-label">
-        <i class="mdi mdi-filter-variant"></i>
-        <span>Filter by Tags</span>
-      </div>
-      <el-select
-        v-model="selectedTagIds"
-        multiple
-        filterable
-        collapse-tags
-        collapse-tags-tooltip
-        :placeholder="allTags.length > 0 ? 'Search tags to filter...' : 'No tags available'"
-        :disabled="allTags.length === 0"
-        size="default"
-        clearable
-        class="tag-filter-select"
-      >
-        <template #prefix>
-          <i class="mdi mdi-tag-multiple-outline"></i>
-        </template>
-        <el-option
-          v-for="tag in allTags"
-          :key="tag.id"
-          :label="tag.name"
-          :value="tag.id"
+    <!-- Search/Filter Section -->
+    <div v-if="isAdmin || isSuperadmin" class="search-filter">
+      <!-- Search Mode Toggle -->
+      <div class="search-mode-toggle">
+        <button 
+          :class="['mode-btn', { active: searchMode === 'tags' }]"
+          @click="searchMode = 'tags'"
+          title="Filter by Tags"
         >
-          <div class="tag-option">
-            <span class="tag-color" :style="{ backgroundColor: tag.color }"></span>
-            <span class="tag-name">{{ tag.name }}</span>
-            <span v-if="tag.category" class="tag-category">{{ tag.category }}</span>
-          </div>
-        </el-option>
-      </el-select>
+          <i class="mdi mdi-tag-multiple"></i>
+          <span>Tags</span>
+        </button>
+        <button 
+          :class="['mode-btn', { active: searchMode === 'name' }]"
+          @click="searchMode = 'name'"
+          title="Search by Name"
+        >
+          <i class="mdi mdi-account-search"></i>
+          <span>Name</span>
+        </button>
+      </div>
+
+      <!-- Tag Filter (when mode is tags) -->
+      <div v-if="searchMode === 'tags'" class="filter-input">
+        <el-select
+          v-model="selectedTagIds"
+          multiple
+          filterable
+          collapse-tags
+          collapse-tags-tooltip
+          :placeholder="allTags.length > 0 ? 'Search tags to filter...' : 'No tags available'"
+          :disabled="allTags.length === 0"
+          size="default"
+          clearable
+          class="tag-filter-select"
+        >
+          <template #prefix>
+            <i class="mdi mdi-tag-multiple-outline"></i>
+          </template>
+          <el-option
+            v-for="tag in allTags"
+            :key="tag.id"
+            :label="tag.name"
+            :value="tag.id"
+          >
+            <div class="tag-option">
+              <span class="tag-color" :style="{ backgroundColor: tag.color }"></span>
+              <span class="tag-name">{{ tag.name }}</span>
+              <span v-if="tag.category" class="tag-category">{{ tag.category }}</span>
+            </div>
+          </el-option>
+        </el-select>
+      </div>
+
+      <!-- Name Search (when mode is name) -->
+      <div v-else-if="searchMode === 'name'" class="filter-input">
+        <div class="search-input-wrapper">
+          <i class="mdi mdi-magnify search-icon"></i>
+          <input
+            v-model="nameSearch"
+            type="text"
+            placeholder="Search by member name..."
+            class="search-input"
+          />
+          <button 
+            v-if="nameSearch" 
+            class="clear-btn"
+            @click="nameSearch = ''"
+          >
+            <i class="mdi mdi-close"></i>
+          </button>
+        </div>
+      </div>
+
+
     </div>
 
     <!-- Add New User Button -->
@@ -70,6 +111,8 @@
     <CreateUserModal
       v-model="showCreateUserModal"
       :existing-pins="existingPins"
+      :is-pool-admin="isPoolAdmin"
+      :devices="poolDevices"
       @create-user="handleCreateUser"
     />
   </div>
@@ -90,12 +133,16 @@ interface Props {
   selectedMemberId?: string | null
   isAdmin?: boolean
   isSuperadmin?: boolean
+  isPoolAdmin?: boolean
+  poolDevices?: Array<{ id: number; name: string; device_id: string }>
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectedMemberId: null,
   isAdmin: false,
-  isSuperadmin: false
+  isSuperadmin: false,
+  isPoolAdmin: false,
+  poolDevices: () => []
 })
 
 // Computed: Extract all existing PINs from members
@@ -108,11 +155,15 @@ const existingPins = computed(() => {
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number }): void
 }>()
 
 // Modal state
 const showCreateUserModal = ref(false)
+
+// Search mode: 'tags' or 'name'
+const searchMode = ref<'tags' | 'name'>('tags')
+const nameSearch = ref('')
 
 // Restore selectedTagIds from localStorage
 const savedTagIds = localStorage.getItem('memberList_selectedTagIds')
@@ -149,16 +200,30 @@ const allTags = computed(() => {
 
 // Filter members by selected tags
 const filteredMembers = computed(() => {
-  if (selectedTagIds.value.length === 0) {
-    return props.members
+  // Filter based on search mode
+  if (searchMode.value === 'tags') {
+    if (selectedTagIds.value.length === 0) {
+      return props.members
+    }
+    
+    return props.members.filter(member => {
+      if (!member.tags || member.tags.length === 0) return false
+      
+      // Member must have at least one of the selected tags
+      return member.tags.some(tag => tag && tag.id && selectedTagIds.value.includes(tag.id))
+    })
+  } else if (searchMode.value === 'name') {
+    if (!nameSearch.value.trim()) {
+      return props.members
+    }
+    
+    const searchTerm = nameSearch.value.toLowerCase().trim()
+    return props.members.filter(member => {
+      return member.name?.toLowerCase().includes(searchTerm)
+    })
   }
   
-  return props.members.filter(member => {
-    if (!member.tags || member.tags.length === 0) return false
-    
-    // Member must have at least one of the selected tags
-    return member.tags.some(tag => tag && tag.id && selectedTagIds.value.includes(tag.id))
-  })
+  return props.members
 })
 
 const handleSelect = (member: Member) => {
@@ -198,61 +263,161 @@ const handleCreateUser = (userData: { pin: string; username: string; avatar: Fil
   margin-bottom: $space-2;
 }
 
-.tag-filter {
+.search-filter {
   padding: 0 $space-3;
   margin-bottom: $space-3;
+}
 
-  .filter-label {
+.search-mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: $space-3;
+  background: var(--zen-surface-secondary);
+  border-radius: $radius-lg;
+  padding: 4px;
+  border: 1px solid var(--zen-border-light);
+
+  .mode-btn {
+    flex: 1;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
-    font-size: $text-body-xs;
-    font-weight: $font-weight-semibold;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
     color: var(--zen-text-secondary);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: $text-body-xs;
+    font-weight: $font-weight-medium;
+    border-radius: $radius-md;
+    cursor: pointer;
+    transition: all 0.2s ease;
 
     i {
-      font-size: 14px;
-      opacity: 0.7;
+      font-size: 16px;
+    }
+
+    span {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    &:hover {
+      background: var(--zen-bg-hover);
+      color: var(--zen-text-primary);
+    }
+
+    &.active {
+      background: var(--zen-accent-primary);
+      color: white;
+      box-shadow: 0 2px 6px rgba(99, 102, 241, 0.25);
+    }
+  }
+}
+
+.filter-input {
+  width: 100%;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    font-size: 18px;
+    color: var(--zen-text-muted);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .search-input {
+    width: 100%;
+    padding: 10px 40px 10px 40px;
+    background: var(--zen-surface-secondary);
+    border: 1.5px solid var(--zen-border-medium);
+    border-radius: $radius-lg;
+    color: var(--zen-text-primary);
+    font-size: $text-body-sm;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &::placeholder {
+      color: var(--zen-text-muted);
+    }
+
+    &:hover {
+      border-color: var(--zen-accent-primary);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: var(--zen-accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
     }
   }
 
-  :deep(.tag-filter-select) {
-    width: 100%;
-    
-    .el-select__wrapper {
-      background: var(--zen-surface-secondary);
-      border: 1.5px solid var(--zen-border-medium);
-      border-radius: $radius-lg;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      
-      &:hover {
-        border-color: var(--zen-accent-primary);
-        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
-      }
+  .clear-btn {
+    position: absolute;
+    right: 8px;
+    padding: 4px;
+    background: transparent;
+    border: none;
+    color: var(--zen-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
 
-      &.is-focused {
-        border-color: var(--zen-accent-primary);
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-      }
-    }
-
-    .el-select__prefix {
-      color: var(--zen-text-muted);
+    i {
       font-size: 18px;
     }
 
-    .el-select__tags {
-      .el-tag {
-        background: var(--zen-accent-primary-alpha);
-        border-color: transparent;
-        color: var(--zen-accent-primary);
-        border-radius: $radius-md;
-        font-weight: $font-weight-medium;
-      }
+    &:hover {
+      background: var(--zen-bg-hover);
+      color: var(--zen-text-primary);
+    }
+  }
+}
+
+:deep(.tag-filter-select) {
+  width: 100%;
+  
+  .el-select__wrapper {
+    background: var(--zen-surface-secondary);
+    border: 1.5px solid var(--zen-border-medium);
+    border-radius: $radius-lg;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    
+    &:hover {
+      border-color: var(--zen-accent-primary);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+    }
+
+    &.is-focused {
+      border-color: var(--zen-accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+  }
+
+  .el-select__prefix {
+    color: var(--zen-text-muted);
+    font-size: 18px;
+  }
+
+  .el-select__tags {
+    .el-tag {
+      background: var(--zen-accent-primary-alpha);
+      border-color: transparent;
+      color: var(--zen-accent-primary);
+      border-radius: $radius-md;
+      font-weight: $font-weight-medium;
     }
   }
 }

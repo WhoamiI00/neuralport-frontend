@@ -358,11 +358,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/stores/auth'
 import { useSuperadminStore } from '@/stores/superadmin'
+import { usePoolAdminStore } from '@/stores/poolAdmin'
 import { getUser, listScores, listStorageAvg } from '@/lib/api'
 import type { EChartsOption } from 'echarts'
 import {
@@ -383,11 +384,13 @@ interface Props {
   userId: string
   isAdmin?: boolean
   isSuperadmin?: boolean
+  isPoolAdmin?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isAdmin: false,
-  isSuperadmin: false
+  isSuperadmin: false,
+  isPoolAdmin: false
 })
 
 const emit = defineEmits<{
@@ -399,6 +402,7 @@ const emit = defineEmits<{
 const { isDark } = useTheme()
 const authStore = useAuthStore()
 const superadminStore = useSuperadminStore()
+const poolAdminStore = usePoolAdminStore()
 
 // State
 const loading = ref(true)
@@ -471,15 +475,22 @@ async function fetchStorageAvgData() {
   if (!props.userId) return
   
   try {
-    let tenantId: number
-    if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
-      tenantId = superadminStore.selectedDeviceId
-    } else {
-      tenantId = parseInt(authStore.user?.tenant_id || '1')
-    }
-    
     const currentUserId = parseInt(props.userId)
-    const storageAverages = await listStorageAvg(tenantId, currentUserId)
+    let storageAverages: any[] = []
+    
+    // Use pool admin API if in pool admin mode
+    if (props.isPoolAdmin || poolAdminStore.isAuthenticated) {
+      storageAverages = await poolAdminStore.fetchUserStorageAvg(currentUserId)
+    } else {
+      let tenantId: number
+      if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
+        tenantId = superadminStore.selectedDeviceId
+      } else {
+        tenantId = parseInt(authStore.user?.tenant_id || '1')
+      }
+      
+      storageAverages = await listStorageAvg(tenantId, currentUserId)
+    }
     
     // Create storage avg map
     const storageAvgMap = new Map(storageAverages.map(avg => [avg.key, avg]))
@@ -1163,21 +1174,37 @@ async function fetchUserData() {
   error.value = null
   
   try {
-    // Get tenant ID
-    let tenantId: number
-    if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
-      tenantId = superadminStore.selectedDeviceId
-    } else {
-      tenantId = parseInt(authStore.user?.tenant_id || '1')
-    }
-    
     const currentUserId = parseInt(props.userId)
+    let userProfile: any
+    let scores: any[] = []
     
-    // Fetch user and scores in parallel (storage_avg is fetched on "Load More")
-    const [userProfile, scores] = await Promise.all([
-      getUser(currentUserId),
-      listScores(tenantId, currentUserId)
-    ])
+    // Use pool admin API if in pool admin mode
+    if (props.isPoolAdmin || poolAdminStore.isAuthenticated) {
+      // Fetch user from pool admin store
+      userProfile = await poolAdminStore.fetchUser(currentUserId)
+      if (!userProfile) {
+        throw new Error('User not found or access denied')
+      }
+      
+      // Fetch scores from pool admin API
+      scores = await poolAdminStore.fetchUserScores(currentUserId)
+    } else {
+      // Get tenant ID for regular/superadmin mode
+      let tenantId: number
+      if (superadminStore.isAuthenticated && superadminStore.selectedDeviceId) {
+        tenantId = superadminStore.selectedDeviceId
+      } else {
+        tenantId = parseInt(authStore.user?.tenant_id || '1')
+      }
+      
+      // Fetch user and scores in parallel (storage_avg is fetched on "Load More")
+      const [profile, scoresData] = await Promise.all([
+        getUser(currentUserId),
+        listScores(tenantId, currentUserId)
+      ])
+      userProfile = profile
+      scores = scoresData
+    }
     
     // Process scores without storage data initially
     // Storage data (blink/pupil) will be fetched when user clicks "Load More"
@@ -1289,9 +1316,7 @@ watch(() => props.userId, () => {
   }
 }, { immediate: true })
 
-onMounted(() => {
-  fetchUserData()
-})
+// Note: onMounted removed - watch with immediate: true handles initial fetch
 </script>
 
 <style lang="scss" scoped>
