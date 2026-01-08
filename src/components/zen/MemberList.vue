@@ -113,6 +113,8 @@
       :existing-pins="existingPins"
       :is-pool-admin="isPoolAdmin"
       :devices="poolDevices"
+      :available-tags="availableTags"
+      :admin-tag-ids="adminTagIds"
       @create-user="handleCreateUser"
     />
   </div>
@@ -128,6 +130,14 @@ import CreateUserModal from './CreateUserModal.vue'
 
 const { t } = useLanguage()
 
+interface PoolTag {
+  id: number
+  name: string
+  color: string
+  is_team_tag: boolean
+  is_admin_tag: boolean
+}
+
 interface Props {
   members: Member[]
   selectedMemberId?: string | null
@@ -135,6 +145,8 @@ interface Props {
   isSuperadmin?: boolean
   isPoolAdmin?: boolean
   poolDevices?: Array<{ id: number; name: string; device_id: string }>
+  availableTags?: PoolTag[]
+  adminTagIds?: number[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -142,7 +154,9 @@ const props = withDefaults(defineProps<Props>(), {
   isAdmin: false,
   isSuperadmin: false,
   isPoolAdmin: false,
-  poolDevices: () => []
+  poolDevices: () => [],
+  availableTags: () => [],
+  adminTagIds: () => []
 })
 
 // Computed: Extract all existing PINs from members
@@ -155,7 +169,7 @@ const existingPins = computed(() => {
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number; selectedTagIds?: number[] }): void
 }>()
 
 // Modal state

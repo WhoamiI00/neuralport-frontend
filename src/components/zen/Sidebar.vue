@@ -69,19 +69,12 @@
 
       <!-- Dynamic Content based on Mode -->
       <div class="sidebar-content">
-        <!-- Pool Admin Info Header -->
+        <!-- Pool Admin Info Header (minimal - just mode indicator) -->
         <div v-if="isPoolAdmin && poolAdminInfo" class="device-selector pool-admin-header">
           <div class="device-header">
             <div class="device-header-content">
               <i class="mdi mdi-account-group"></i>
               <span>Team Admin</span>
-            </div>
-          </div>
-          <div class="pool-admin-info">
-            <div class="pool-name">{{ poolAdminInfo.pool?.name }}</div>
-            <div class="pool-email">{{ poolAdminInfo.email }}</div>
-            <div v-if="poolAdminInfo.tag_names?.length" class="pool-tags">
-              <span v-for="tag in poolAdminInfo.tag_names" :key="tag" class="pool-tag">{{ tag }}</span>
             </div>
           </div>
           <div class="device-divider"></div>
@@ -142,6 +135,8 @@
             :is-superadmin="isSuperadmin"
             :is-pool-admin="isPoolAdmin"
             :pool-devices="poolDevices"
+            :available-tags="availableTags"
+            :admin-tag-ids="adminTagIds"
             @select-member="handleMemberSelect"
             @view-details="handleViewDetails"
             @create-user="handleCreateUser"
@@ -157,6 +152,7 @@
             :superadmin-email="superadminEmail"
             :pool-admin-email="poolAdminInfo?.email || ''"
             :pool-name="poolAdminInfo?.pool?.name || ''"
+            :pool-admin-tags="poolAdminInfo?.tag_names || []"
             :vr-name="vrName"
             :device-id="deviceId"
             @option-click="handleOptionClick"
@@ -205,6 +201,14 @@ import type { Member } from '../../data/members'
 import MemberList from './MemberList.vue'
 import SidebarOptions from './SidebarOptions.vue'
 
+interface PoolTag {
+  id: number
+  name: string
+  color: string
+  is_team_tag: boolean
+  is_admin_tag: boolean
+}
+
 interface Props {
   members: Member[]
   selectedMemberId?: string | null
@@ -219,6 +223,8 @@ interface Props {
   isPoolAdmin?: boolean
   poolAdminInfo?: { name?: string; email: string; pool: { name: string }; tag_names: string[] } | null
   poolDevices?: Array<{ id: number; name: string; device_id: string }>
+  availableTags?: PoolTag[]
+  adminTagIds?: number[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -231,14 +237,16 @@ const props = withDefaults(defineProps<Props>(), {
   selectedDeviceId: null,
   isPoolAdmin: false,
   poolAdminInfo: null,
-  poolDevices: () => []
+  poolDevices: () => [],
+  availableTags: () => [],
+  adminTagIds: () => []
 })
 
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'deselect-member'): void
   (e: 'view-details', memberId: string): void
-  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number }): void
+  (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number; selectedTagIds?: number[] }): void
   (e: 'edit-vr-name'): void
   (e: 'manage-tags'): void
   (e: 'manage-pools'): void

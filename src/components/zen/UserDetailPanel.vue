@@ -10,6 +10,11 @@
       <i class="mdi mdi-pencil"></i>
     </button>
 
+    <!-- Export Button -->
+    <button class="export-panel-btn" @click="exportReport" title="Export Report">
+      <i class="mdi mdi-download"></i>
+    </button>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <div class="loader">
@@ -360,6 +365,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/stores/auth'
 import { useSuperadminStore } from '@/stores/superadmin'
@@ -1166,6 +1172,328 @@ const pupilSizeOption = computed<EChartsOption>(() => {
   }
 })
 
+// Export Report function
+const exportReport = async () => {
+  const exportBtn = document.querySelector('.export-panel-btn') as HTMLElement
+  const originalBtnContent = exportBtn?.innerHTML
+  let tempContainer: HTMLElement | null = null
+  
+  try {
+    // Show loading state
+    if (exportBtn) {
+      exportBtn.style.pointerEvents = 'none'
+      exportBtn.style.opacity = '0.6'
+      exportBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i>'
+    }
+    
+    ElMessage.info('Preparing report for export...')
+    
+    // Wait for complete render
+    await document.fonts.ready
+    
+    // Wait for images to load
+    const images = Array.from(document.querySelectorAll('img'))
+    await Promise.all(
+      images.map(img => 
+        img.complete ? Promise.resolve() : new Promise(resolve => {
+          img.onload = resolve
+          img.onerror = resolve
+          setTimeout(resolve, 100)
+        })
+      )
+    )
+    
+    // Additional buffer for chart rendering
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    
+    // Import libraries
+    const html2canvas = (await import('html2canvas')).default
+    const { jsPDF } = await import('jspdf')
+    
+    // Get the main content container
+    const mainContent = document.querySelector('.details-content') as HTMLElement
+    if (!mainContent) {
+      throw new Error('Content not found')
+    }
+    
+    // Create temporary container with clone
+    const containerWidth = 1300
+    const a4PortraitRatio = 210 / 297
+    const containerHeight = Math.floor(containerWidth / a4PortraitRatio)
+    
+    tempContainer = document.createElement('div')
+    tempContainer.style.position = 'fixed'
+    tempContainer.style.left = '-99999px'
+    tempContainer.style.top = '0'
+    tempContainer.style.width = `${containerWidth}px`
+    tempContainer.style.minHeight = `${containerHeight}px`
+    tempContainer.style.padding = '40px'
+    tempContainer.style.background = isDark.value ? '#0F172A' : '#FFFFFF'
+    tempContainer.style.zIndex = '-1'
+    tempContainer.style.boxSizing = 'border-box'
+    tempContainer.style.overflow = 'visible'
+    
+    const clone = mainContent.cloneNode(true) as HTMLElement
+    clone.style.width = '100%'
+    clone.style.maxWidth = '100%'
+    clone.style.margin = '0'
+    clone.style.padding = '0'
+    clone.style.boxSizing = 'border-box'
+    
+    tempContainer.appendChild(clone)
+    document.body.appendChild(tempContainer)
+    
+    // Wait for clone to render
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Ensure all images in clone are loaded, including avatar
+    const clonedImages = Array.from(tempContainer.querySelectorAll('img'))
+    await Promise.all(
+      clonedImages.map(img => {
+        const imgElement = img as HTMLImageElement
+        if (imgElement.complete) {
+          return Promise.resolve()
+        }
+        return new Promise(resolve => {
+          imgElement.onload = resolve
+          imgElement.onerror = resolve
+          // Force reload if src is set
+          if (imgElement.src) {
+            const src = imgElement.src
+            imgElement.src = ''
+            imgElement.src = src
+          }
+          setTimeout(resolve, 200)
+        })
+      })
+    )
+    
+    // Additional wait for images to settle
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // Hide elements not needed in PDF export
+    // Hide search sessions input
+    const searchInput = tempContainer.querySelector('.search-input')
+    if (searchInput) {
+      (searchInput as HTMLElement).style.display = 'none'
+    }
+    
+    // Hide pagination controls
+    const pagination = tempContainer.querySelector('.sessions-pagination')
+    if (pagination) {
+      (pagination as HTMLElement).style.display = 'none'
+    }
+    
+    // Add page break before session history section
+    const sessionsSection = tempContainer.querySelector('.sessions-section')
+    if (sessionsSection) {
+      const sectionElement = sessionsSection as HTMLElement
+      sectionElement.style.setProperty('page-break-before', 'always')
+      sectionElement.style.setProperty('break-before', 'page')
+      sectionElement.style.marginTop = '100px'
+      sectionElement.style.paddingTop = '60px'
+    }
+    
+    // Ensure session table doesn't split across pages
+    const sessionsCard = tempContainer.querySelector('.sessions-card')
+    if (sessionsCard) {
+      const cardElement = sessionsCard as HTMLElement
+      cardElement.style.setProperty('page-break-inside', 'avoid')
+      cardElement.style.setProperty('break-inside', 'avoid')
+    }
+    
+    // Remove Actions column completely from session history table
+    const tables = tempContainer.querySelectorAll('.el-table')
+    tables.forEach((table) => {
+      // Find and remove Actions column header (th)
+      const headers = table.querySelectorAll('th')
+      headers.forEach((th, index) => {
+        if (th.textContent?.trim() === 'Actions') {
+          th.remove()
+        }
+      })
+      
+      // Find and remove Actions column cells (td) - last column in each row
+      const rows = table.querySelectorAll('tbody tr')
+      rows.forEach((row) => {
+        const cells = row.querySelectorAll('td')
+        // Remove the last cell which is the Actions column
+        if (cells.length > 0) {
+          const lastCell = cells[cells.length - 1]
+          // Check if it contains action buttons
+          if (lastCell.querySelector('.el-button') || lastCell.querySelector('.mdi-eye')) {
+            lastCell.remove()
+          }
+        }
+      })
+      
+      // Adjust table column widths to fill space
+      const tableElement = table as HTMLElement
+      tableElement.style.width = '100%'
+      tableElement.style.tableLayout = 'auto'
+    })
+    
+    // Remove fixed heights from chart containers
+    const chartContainers = tempContainer.querySelectorAll('[class*="chart"]')
+    chartContainers.forEach((container) => {
+      const elem = container as HTMLElement
+      elem.style.height = 'auto'
+      elem.style.minHeight = 'auto'
+      elem.style.maxHeight = 'none'
+      elem.style.overflow = 'visible'
+    })
+    
+    // Replace ECharts canvas elements with images
+    const originalCharts = mainContent.querySelectorAll('canvas')
+    const clonedCharts = tempContainer.querySelectorAll('canvas')
+    
+    clonedCharts.forEach((clonedCanvas, index) => {
+      const originalCanvas = originalCharts[index] as HTMLCanvasElement
+      if (originalCanvas && originalCanvas.width > 0 && originalCanvas.height > 0) {
+        try {
+          const imgData = originalCanvas.toDataURL('image/png')
+          const img = document.createElement('img')
+          img.src = imgData
+          
+          const aspectRatio = originalCanvas.height / originalCanvas.width
+          img.style.width = '100%'
+          img.style.maxWidth = '100%'
+          img.style.height = 'auto'
+          img.style.minHeight = `${aspectRatio * 100}%`
+          img.style.display = 'block'
+          img.style.objectFit = 'contain'
+          
+          if (clonedCanvas.parentNode) {
+            const parent = clonedCanvas.parentNode as HTMLElement
+            parent.style.width = '100%'
+            parent.style.maxWidth = '100%'
+            parent.style.height = 'auto'
+            parent.style.minHeight = 'auto'
+            parent.style.maxHeight = 'none'
+            parent.style.display = 'block'
+            parent.style.overflow = 'visible'
+            
+            let ancestor = parent.parentElement
+            while (ancestor && ancestor !== tempContainer) {
+              ancestor.style.height = 'auto'
+              ancestor.style.minHeight = 'auto'
+              ancestor.style.maxHeight = 'none'
+              ancestor.style.overflow = 'visible'
+              ancestor = ancestor.parentElement
+            }
+            
+            clonedCanvas.parentNode.replaceChild(img, clonedCanvas)
+          }
+        } catch (e) {
+          console.warn('Failed to convert chart canvas:', e)
+        }
+      }
+    })
+    
+    await new Promise(resolve => setTimeout(resolve, 200))
+    
+    const allImages = tempContainer.querySelectorAll('img')
+    allImages.forEach((img) => {
+      const isChartImage = img.closest('[class*="chart"]') !== null
+      if (isChartImage) {
+        img.style.width = '100%'
+        img.style.maxWidth = '100%'
+        img.style.height = 'auto'
+        img.style.minHeight = 'auto'
+        img.style.maxHeight = 'none'
+        img.style.objectFit = 'contain'
+        
+        let parent = img.parentElement
+        while (parent && parent !== tempContainer) {
+          parent.style.height = 'auto'
+          parent.style.minHeight = 'auto'
+          parent.style.maxHeight = 'none'
+          parent.style.overflow = 'visible'
+          parent = parent.parentElement
+        }
+      }
+    })
+    
+    const captureHeight = tempContainer.scrollHeight
+    
+    const canvas = await html2canvas(tempContainer, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: isDark.value ? '#0F172A' : '#FFFFFF',
+      logging: false,
+      width: containerWidth,
+      height: captureHeight,
+      windowWidth: containerWidth,
+      windowHeight: captureHeight,
+      onclone: (clonedDoc: Document) => {
+        const clonedContainer = clonedDoc.querySelector('div[style*="position: fixed"]') as HTMLElement
+        if (clonedContainer) {
+          clonedContainer.style.display = 'block'
+          clonedContainer.style.position = 'relative'
+          clonedContainer.style.left = '0'
+          clonedContainer.style.width = `${containerWidth}px`
+        }
+      }
+    })
+    
+    if (!canvas || canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas is empty or invalid')
+    }
+    
+    // Create PDF
+    const pdfWidth = 210
+    const pdfHeight = 297
+    const imgWidth = pdfWidth
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    const pageHeight = pdfHeight
+    
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      compress: true
+    })
+    
+    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    
+    let heightLeft = imgHeight
+    let position = 0
+    
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+    heightLeft -= pageHeight
+    
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight
+      pdf.addPage()
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+      heightLeft -= pageHeight
+    }
+    
+    const username = userData.value?.name?.toLowerCase().replace(/\s+/g, '-') || 'user'
+    const timestamp = new Date().toISOString().split('T')[0]
+    const filename = `user-report-${username}-${timestamp}.pdf`
+    
+    pdf.save(filename)
+    
+    ElMessage.success('Report exported successfully!')
+    
+  } catch (err) {
+    console.error('PDF export failed:', err)
+    ElMessage.error(`Failed to export report: ${err instanceof Error ? err.message : 'Unknown error'}`)
+  } finally {
+    if (tempContainer && tempContainer.parentNode) {
+      tempContainer.parentNode.removeChild(tempContainer)
+    }
+    
+    if (exportBtn && originalBtnContent) {
+      exportBtn.style.pointerEvents = 'auto'
+      exportBtn.style.opacity = '1'
+      exportBtn.innerHTML = originalBtnContent
+    }
+  }
+}
+
 // Fetch user data
 async function fetchUserData() {
   if (!props.userId) return
@@ -1355,6 +1683,32 @@ watch(() => props.userId, () => {
 }
 
 .edit-panel-btn {
+  position: absolute;
+  top: $space-3;
+  right: 110px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--zen-border-medium);
+  border-radius: $radius-full;
+  background: var(--zen-bg-secondary);
+  color: var(--zen-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  z-index: 10;
+  
+  &:hover {
+    background: var(--zen-accent-teal-alpha, rgba(6, 182, 212, 0.15));
+    border-color: var(--zen-accent-teal);
+    color: var(--zen-accent-teal);
+  }
+  
+  i { font-size: 20px; }
+}
+
+.export-panel-btn {
   position: absolute;
   top: $space-3;
   right: 60px;

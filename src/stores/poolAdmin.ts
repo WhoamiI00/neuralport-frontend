@@ -45,6 +45,7 @@ export interface PoolTag {
   tenant_id: number
   device_name: string
   is_admin_tag: boolean
+  is_team_tag: boolean
 }
 
 export interface PoolDevice {

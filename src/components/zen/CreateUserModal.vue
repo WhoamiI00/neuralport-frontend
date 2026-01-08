@@ -132,6 +132,52 @@
                 </div>
               </div>
 
+              <!-- Tag Selection (Pool Admin only) -->
+              <div v-if="isPoolAdmin && selectableTags.length > 0" class="form-group full-width tag-selection-group">
+                <label class="form-label">
+                  <i class="mdi mdi-tag-multiple"></i>
+                  Select Tags <span class="required">*</span>
+                </label>
+                
+                <!-- Team tags auto-assigned notice -->
+                <div v-if="teamTagsAutoAssigned.length > 0" class="auto-assigned-notice">
+                  <i class="mdi mdi-information-outline"></i>
+                  <span>Team tags auto-assigned: </span>
+                  <span 
+                    v-for="tag in teamTagsAutoAssigned" 
+                    :key="tag.id" 
+                    class="team-tag-badge"
+                    :style="{ backgroundColor: tag.color + '20', color: tag.color, borderColor: tag.color }"
+                  >
+                    {{ tag.name }}
+                  </span>
+                </div>
+                
+                <!-- Selectable tags -->
+                <div class="tag-checkbox-grid">
+                  <label 
+                    v-for="tag in selectableTags" 
+                    :key="tag.id" 
+                    class="tag-checkbox-item"
+                    :class="{ 'selected': formData.selectedTagIds.includes(tag.id) }"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="tag.id"
+                      v-model="formData.selectedTagIds"
+                      @change="errors.tags = ''"
+                    />
+                    <span 
+                      class="tag-label"
+                      :style="{ backgroundColor: tag.color + '20', color: tag.color, borderColor: tag.color }"
+                    >
+                      {{ tag.name }}
+                    </span>
+                  </label>
+                </div>
+                <span v-if="errors.tags" class="error-message">{{ errors.tags }}</span>
+              </div>
+
               <!-- Footer Actions -->
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" @click="handleClose">
@@ -161,17 +207,29 @@ import { useTheme } from '../../composables/useTheme'
 import { useLanguage } from '../../composables/useLanguage'
 import { ElMessage } from 'element-plus'
 
+interface PoolTag {
+  id: number
+  name: string
+  color: string
+  is_team_tag: boolean
+  is_admin_tag: boolean
+}
+
 interface Props {
   modelValue: boolean
   existingPins?: string[]  // List of existing member PINs to check for duplicates
   devices?: Array<{ id: number; name: string; device_id: string }>  // Pool admin devices
   isPoolAdmin?: boolean  // Whether this is pool admin mode
+  availableTags?: PoolTag[]  // Tags available for selection (Pool Admin mode)
+  adminTagIds?: number[]  // Admin's assigned tag IDs (team tags auto-assigned)
 }
 
 const props = withDefaults(defineProps<Props>(), {
   existingPins: () => [],
   devices: () => [],
-  isPoolAdmin: false
+  isPoolAdmin: false,
+  availableTags: () => [],
+  adminTagIds: () => []
 })
 
 const emit = defineEmits<{
@@ -182,6 +240,7 @@ const emit = defineEmits<{
     avatar: File | null
     avatarUrl: string | null
     tenantId?: number
+    selectedTagIds?: number[]
   }): void
 }>()
 
@@ -197,14 +256,26 @@ const formData = reactive({
   pin: '',
   username: '',
   avatarUrl: '',
-  selectedDeviceId: null as number | null
+  selectedDeviceId: null as number | null,
+  selectedTagIds: [] as number[]
 })
 
 const errors = reactive({
   pin: '',
   username: '',
   avatarUrl: '',
-  device: ''
+  device: '',
+  tags: ''
+})
+
+// Computed: Get selectable tags (non-team-tags that admin has access to)
+const selectableTags = computed(() => {
+  return props.availableTags.filter(tag => !tag.is_team_tag && tag.is_admin_tag)
+})
+
+// Computed: Get team tags that will be auto-assigned
+const teamTagsAutoAssigned = computed(() => {
+  return props.availableTags.filter(tag => tag.is_team_tag && tag.is_admin_tag)
 })
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -262,12 +333,17 @@ const isFormValid = computed(() => {
   if (props.isPoolAdmin && !formData.selectedDeviceId) {
     return false
   }
+  // Pool admin requires at least one regular tag to be selected
+  if (props.isPoolAdmin && selectableTags.value.length > 0 && formData.selectedTagIds.length === 0) {
+    return false
+  }
   return (
     formData.pin.length === 4 &&
     formData.username.trim().length >= 2 &&
     !errors.pin &&
     !errors.username &&
-    !errors.avatarUrl
+    !errors.avatarUrl &&
+    !errors.tags
   )
 })
 
@@ -395,6 +471,12 @@ const handleSubmit = async () => {
     return
   }
   
+  // Pool admin requires at least one regular tag
+  if (props.isPoolAdmin && selectableTags.value.length > 0 && formData.selectedTagIds.length === 0) {
+    errors.tags = 'Please select at least one tag'
+    return
+  }
+  
   if (!isFormValid.value) {
     return
   }
@@ -408,7 +490,8 @@ const handleSubmit = async () => {
       username: formData.username.trim(),
       avatar: null,
       avatarUrl: formData.avatarUrl.trim() || null,
-      tenantId: formData.selectedDeviceId || undefined
+      tenantId: formData.selectedDeviceId || undefined,
+      selectedTagIds: props.isPoolAdmin ? formData.selectedTagIds : undefined
     })
     
     // Close modal after successful submission
@@ -423,10 +506,12 @@ const resetForm = () => {
   formData.username = ''
   formData.avatarUrl = ''
   formData.selectedDeviceId = null
+  formData.selectedTagIds = []
   errors.pin = ''
   errors.username = ''
   errors.avatarUrl = ''
   errors.device = ''
+  errors.tags = ''
   avatarPreview.value = null
   isSubmitting.value = false
   isUploading.value = false
@@ -816,6 +901,80 @@ const resetForm = () => {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+// Tag Selection Styles
+.tag-selection-group {
+  margin-top: $space-4;
+  
+  .required {
+    color: #EF4444;
+  }
+  
+  .auto-assigned-notice {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $space-2;
+    padding: $space-3;
+    background: var(--zen-surface-secondary);
+    border-radius: $radius-lg;
+    font-size: $text-body-sm;
+    color: var(--zen-text-muted);
+    margin-bottom: $space-3;
+    
+    i {
+      color: var(--zen-accent-teal);
+    }
+    
+    .team-tag-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid;
+    }
+  }
+  
+  .tag-checkbox-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $space-2;
+  }
+  
+  .tag-checkbox-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    
+    input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .tag-label {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 500;
+      border: 2px solid;
+      transition: all 0.2s ease;
+      opacity: 0.6;
+    }
+    
+    &.selected .tag-label {
+      opacity: 1;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    
+    &:hover .tag-label {
+      opacity: 0.85;
+    }
   }
 }
 </style>

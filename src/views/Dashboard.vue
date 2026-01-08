@@ -11,6 +11,8 @@
       :is-pool-admin="isPoolAdmin"
       :pool-admin-info="poolAdminStore.poolAdmin"
       :pool-devices="poolAdminDevices"
+      :available-tags="poolAdminStore.tags"
+      :admin-tag-ids="poolAdminStore.poolAdmin?.assigned_tags || []"
       :devices="superadminDevices"
       :selected-device-id="selectedDeviceId"
       @select-member="handleMemberSelect"
@@ -1456,7 +1458,7 @@ export default defineComponent({
         },
         
         async handlePoolAdminCreateUser(userData) {
-            // userData contains: { pin, username, avatar, avatarUrl, tenantId }
+            // userData contains: { pin, username, avatar, avatarUrl, tenantId, selectedTagIds }
             
             if (!this.poolAdminStore.isAuthenticated) {
                 ElMessage.error('Pool admin authentication required')
@@ -1474,7 +1476,8 @@ export default defineComponent({
                     tenant_id: userData.tenantId,
                     pin: userData.pin,
                     name: userData.username,
-                    portrait_image: userData.avatarUrl || null
+                    portrait_image: userData.avatarUrl || null,
+                    extra_tags: userData.selectedTagIds || []
                 })
                 
                 if (!result.success) {

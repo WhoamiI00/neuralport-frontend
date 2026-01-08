@@ -37,14 +37,16 @@
       <!-- Pool Admin Display (when in pool admin mode) -->
       <div
         v-else-if="isPoolAdmin && poolAdminEmail"
-        class="option-item vr-name-option non-clickable"
+        class="option-item vr-name-option non-clickable pool-admin-info-block"
       >
         <i class="mdi mdi-account-group"></i>
         <transition name="fade">
           <span class="option-label">
-            <span class="vr-label">Team Admin</span>
+            <span class="vr-label">{{ poolName }}</span>
             <span class="vr-value">{{ poolAdminEmail }}</span>
-            <span v-if="poolName" class="device-id">{{ poolName }}</span>
+            <div v-if="poolAdminTags?.length" class="pool-admin-tags">
+              <span v-for="tag in poolAdminTags" :key="tag" class="pool-tag-badge">{{ tag }}</span>
+            </div>
           </span>
         </transition>
       </div>
@@ -117,6 +119,7 @@ interface Props {
   superadminEmail?: string
   poolAdminEmail?: string
   poolName?: string
+  poolAdminTags?: string[]
   vrName?: string
   deviceId?: string
 }
@@ -128,6 +131,7 @@ const props = withDefaults(defineProps<Props>(), {
   superadminEmail: '',
   poolAdminEmail: '',
   poolName: '',
+  poolAdminTags: () => [],
   vrName: '',
   deviceId: ''
 })
@@ -362,6 +366,38 @@ const handleOptionClick = (option: OptionItem) => {
   height: 1px;
   background: var(--zen-border-glass);
   margin: $space-2 0;
+}
+
+// Pool Admin Tags in Options
+.pool-admin-info-block {
+  flex-direction: column;
+  align-items: flex-start !important;
+  
+  > i {
+    display: none;
+  }
+  
+  .option-label {
+    width: 100%;
+  }
+  
+  .pool-admin-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    
+    .pool-tag-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: var(--zen-accent-purple-alpha, rgba(139, 92, 246, 0.15));
+      color: var(--zen-accent-purple, #8b5cf6);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid var(--zen-accent-purple-alpha, rgba(139, 92, 246, 0.3));
+    }
+  }
 }
 
 // Fade transition
