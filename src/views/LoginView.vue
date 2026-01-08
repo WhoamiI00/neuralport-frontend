@@ -49,8 +49,8 @@
                             :class="{ active: loginMode === 'user' }"
                             @click="loginMode = 'user'"
                         >
-                            <i class="mdi mdi-virtual-reality"></i>
-                            VR Login
+                            <i class="mdi mdi-account"></i>
+                            Personal Login
                         </button>
                         <button 
                             type="button"

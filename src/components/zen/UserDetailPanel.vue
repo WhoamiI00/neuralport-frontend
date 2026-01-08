@@ -1307,7 +1307,7 @@ const exportReport = async () => {
     tables.forEach((table) => {
       // Find and remove Actions column header (th)
       const headers = table.querySelectorAll('th')
-      headers.forEach((th, index) => {
+      headers.forEach((th) => {
         if (th.textContent?.trim() === 'Actions') {
           th.remove()
         }
@@ -1321,7 +1321,7 @@ const exportReport = async () => {
         if (cells.length > 0) {
           const lastCell = cells[cells.length - 1]
           // Check if it contains action buttons
-          if (lastCell.querySelector('.el-button') || lastCell.querySelector('.mdi-eye')) {
+          if (lastCell && (lastCell.querySelector('.el-button') || lastCell.querySelector('.mdi-eye'))) {
             lastCell.remove()
           }
         }

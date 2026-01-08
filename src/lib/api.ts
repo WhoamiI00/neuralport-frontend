@@ -243,6 +243,7 @@ export async function getLatestScore(tenantId: number, userId: number): Promise<
 export interface UserProfile {
   id: number
   username: string  // This is actually the PIN (backend aliases pin as username for compatibility)
+  pin?: string  // User's PIN code
   tenant_id: number
   device_id?: string
   serializedProfile?: string  // JSON string containing name, portrait_image, etc.
