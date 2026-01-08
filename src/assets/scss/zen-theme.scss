@@ -25,9 +25,12 @@
     --zen-bg-primary: #f3f7fa;
     --zen-bg-secondary: rgba(255, 255, 255, 0.7);
     --zen-bg-tertiary: rgba(255, 255, 255, 0.5);
+    --zen-bg-hover: rgba(168, 237, 234, 0.15);
     
     // Surfaces (Cards, Modals, etc.)
     --zen-surface: rgba(255, 255, 255, 0.85);
+    --zen-surface-secondary: rgba(255, 255, 255, 0.9);
+    --zen-surface-tertiary: rgba(245, 248, 250, 0.8);
     --zen-surface-elevated: rgba(255, 255, 255, 0.95);
     --zen-surface-hover: rgba(255, 255, 255, 1);
     --zen-surface-glass: rgba(255, 255, 255, 0.25);
@@ -49,10 +52,12 @@
     // Accent Colors
     --zen-accent-teal: #a8edea;
     --zen-accent-teal-dark: #5dd6d0;
+    --zen-accent-teal-alpha: rgba(168, 237, 234, 0.15);
     --zen-accent-peach: #fed6e3;
     --zen-accent-peach-dark: #f8a5be;
     --zen-accent-cream: #f5e6ca;
     --zen-accent-primary: #5f8fdf;
+    --zen-accent-primary-alpha: rgba(95, 143, 223, 0.15);
     --zen-accent-success: #13ce66;
     --zen-accent-warning: #f7ba2a;
     --zen-accent-danger: #ec205f;
@@ -134,9 +139,12 @@
     --zen-bg-primary: #0f172a;
     --zen-bg-secondary: rgba(30, 41, 59, 0.8);
     --zen-bg-tertiary: rgba(30, 41, 59, 0.6);
+    --zen-bg-hover: rgba(45, 212, 191, 0.15);
     
     // Surfaces (Cards, Modals, etc.)
     --zen-surface: rgba(30, 41, 59, 0.85);
+    --zen-surface-secondary: rgba(30, 41, 59, 0.95);
+    --zen-surface-tertiary: rgba(51, 65, 85, 0.7);
     --zen-surface-elevated: rgba(30, 41, 59, 0.95);
     --zen-surface-hover: rgba(51, 65, 85, 0.9);
     --zen-surface-glass: rgba(30, 41, 59, 0.5);
@@ -158,10 +166,12 @@
     // Accent Colors (Brighter for dark mode)
     --zen-accent-teal: #2dd4bf;
     --zen-accent-teal-dark: #14b8a6;
+    --zen-accent-teal-alpha: rgba(45, 212, 191, 0.15);
     --zen-accent-peach: #fb7185;
     --zen-accent-peach-dark: #f43f5e;
     --zen-accent-cream: #fcd34d;
     --zen-accent-primary: #60a5fa;
+    --zen-accent-primary-alpha: rgba(96, 165, 250, 0.15);
     --zen-accent-success: #34d399;
     --zen-accent-warning: #fbbf24;
     --zen-accent-danger: #f87171;

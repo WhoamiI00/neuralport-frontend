@@ -138,7 +138,6 @@
             :available-tags="availableTags"
             :admin-tag-ids="adminTagIds"
             @select-member="handleMemberSelect"
-            @view-details="handleViewDetails"
             @create-user="handleCreateUser"
           />
 
@@ -245,7 +244,6 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
   (e: 'deselect-member'): void
-  (e: 'view-details', memberId: string): void
   (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number; selectedTagIds?: number[] }): void
   (e: 'edit-vr-name'): void
   (e: 'manage-tags'): void
@@ -335,17 +333,6 @@ const closeMobile = () => {
  */
 const handleMemberSelect = (member: Member) => {
   emit('select-member', member)
-  if (isMobile.value) {
-    closeMobile()
-  }
-}
-
-/**
- * Handle view details click
- * Emits to parent so it can navigate to member details page
- */
-const handleViewDetails = (memberId: string) => {
-  emit('view-details', memberId)
   if (isMobile.value) {
     closeMobile()
   }

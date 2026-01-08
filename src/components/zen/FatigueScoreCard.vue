@@ -114,9 +114,7 @@ const dotPosition = computed(() => {
   background: var(--zen-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--zen-border-glass);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
+  border-radius: $radius-xl;
   padding: $space-4 $space-5;
   box-shadow: var(--zen-shadow-md);
   display: flex;
@@ -137,9 +135,8 @@ const dotPosition = computed(() => {
   }
 
   @media (min-width: $breakpoint-md) {
-    border-left: 1px solid var(--zen-border-glass);
-    border-right: 1px solid var(--zen-border-glass);
-    border-radius: 0;
+    border: 1px solid var(--zen-border-glass);
+    border-radius: $radius-xl;
   }
 
   &:hover {

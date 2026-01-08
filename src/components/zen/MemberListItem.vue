@@ -25,16 +25,6 @@
       </div>
     </transition>
 
-    <!-- Navigation Icon -->
-    <transition name="fade">
-      <button 
-        class="nav-icon-btn"
-        @click.stop="$emit('view-details', member.id)"
-        title="View details"
-      >
-        <i class="mdi mdi-chevron-right"></i>
-      </button>
-    </transition>
   </div>
 </template>
 
@@ -53,7 +43,6 @@ const props = withDefaults(defineProps<Props>(), {
 
 defineEmits<{
   (e: 'select', member: Member): void
-  (e: 'view-details', memberId: string): void
 }>()
 
 // Fallback for broken images
@@ -145,29 +134,7 @@ const initials = computed(() => {
   transition: color 0.2s ease;
 }
 
-.nav-icon-btn {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: $radius-md;
-  border: none;
-  background: transparent;
-  color: var(--zen-text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
 
-  i {
-    font-size: 20px;
-  }
-
-  &:hover {
-    background: var(--zen-bg-secondary);
-    color: var(--zen-accent-teal);
-  }
-}
 
 // Fade transition
 .fade-enter-active,

@@ -99,6 +99,232 @@ $--font-path: "~element-ui/lib/theme-chalk/fonts";
     }
 }
 
+// Dark mode styles for select dropdown
+.dark .el-select-dropdown,
+.dark-mode .el-select-dropdown,
+[data-theme="dark"] .el-select-dropdown {
+    background-color: rgba(30, 41, 59, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    
+    .el-select-dropdown__item {
+        color: #e2e8f0 !important;
+        
+        &:hover {
+            background-color: rgba(51, 65, 85, 0.9) !important;
+        }
+        
+        &.is-selected {
+            color: #60a5fa !important;
+            background-color: rgba(96, 165, 250, 0.15) !important;
+            font-weight: 600;
+        }
+        
+        &.is-disabled {
+            color: #64748b !important;
+        }
+    }
+    
+    .el-select-dropdown__empty {
+        color: #94a3b8 !important;
+    }
+}
+
+// Dark mode for autocomplete dropdown
+.dark .el-autocomplete-suggestion,
+.dark-mode .el-autocomplete-suggestion,
+[data-theme="dark"] .el-autocomplete-suggestion {
+    background-color: rgba(30, 41, 59, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    
+    li {
+        color: #e2e8f0 !important;
+        
+        &:hover {
+            background-color: rgba(51, 65, 85, 0.9) !important;
+        }
+    }
+}
+
+// Dark mode for popper
+.dark .el-popper.is-light,
+.dark-mode .el-popper.is-light,
+[data-theme="dark"] .el-popper.is-light {
+    background: rgba(30, 41, 59, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    
+    .el-popper__arrow::before {
+        background: rgba(30, 41, 59, 0.95) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    }
+}
+
+// Dark mode for dialog
+.dark .el-dialog,
+.dark-mode .el-dialog,
+[data-theme="dark"] .el-dialog {
+    background: rgba(30, 41, 59, 0.95) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+    
+    .el-dialog__header {
+        background: transparent;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .el-dialog__title {
+        color: #f1f5f9 !important;
+    }
+    
+    .el-dialog__headerbtn {
+        .el-dialog__close {
+            color: #94a3b8 !important;
+            
+            &:hover {
+                color: #f1f5f9 !important;
+            }
+        }
+    }
+    
+    .el-dialog__body {
+        color: #e2e8f0 !important;
+    }
+    
+    .el-dialog__footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+}
+
+// Dark mode for inputs inside dialogs
+.dark .el-input,
+.dark-mode .el-input,
+[data-theme="dark"] .el-input {
+    .el-input__wrapper {
+        background: rgba(15, 23, 42, 0.8) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        box-shadow: none !important;
+        
+        &:hover {
+            border-color: rgba(45, 212, 191, 0.4) !important;
+        }
+        
+        &.is-focus {
+            border-color: #2dd4bf !important;
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1) !important;
+        }
+        
+        .el-input__inner {
+            color: #e2e8f0 !important;
+            
+            &::placeholder {
+                color: #64748b !important;
+            }
+        }
+    }
+}
+
+// Dark mode for select component
+.dark .el-select,
+.dark-mode .el-select,
+[data-theme="dark"] .el-select {
+    .el-select__wrapper {
+        background: rgba(15, 23, 42, 0.8) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        box-shadow: none !important;
+        
+        &:hover {
+            border-color: rgba(45, 212, 191, 0.4) !important;
+        }
+        
+        &.is-focused {
+            border-color: #2dd4bf !important;
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1) !important;
+        }
+    }
+    
+    .el-select__placeholder {
+        color: #64748b !important;
+    }
+    
+    .el-select__input {
+        color: #e2e8f0 !important;
+    }
+    
+    .el-select__selected-item {
+        color: #e2e8f0 !important;
+    }
+    
+    .el-select__suffix {
+        .el-icon {
+            color: #94a3b8 !important;
+        }
+    }
+    
+    .el-select__tags {
+        .el-tag {
+            background: rgba(45, 212, 191, 0.15) !important;
+            border-color: rgba(45, 212, 191, 0.3) !important;
+            color: #2dd4bf !important;
+            
+            .el-tag__close {
+                color: #2dd4bf !important;
+                
+                &:hover {
+                    background: rgba(45, 212, 191, 0.2) !important;
+                }
+            }
+        }
+    }
+}
+
+// Dark mode for textarea
+.dark .el-textarea,
+.dark-mode .el-textarea,
+[data-theme="dark"] .el-textarea {
+    .el-textarea__inner {
+        background: rgba(15, 23, 42, 0.8) !important;
+        border-color: rgba(255, 255, 255, 0.12) !important;
+        color: #e2e8f0 !important;
+        
+        &::placeholder {
+            color: #64748b !important;
+        }
+        
+        &:hover {
+            border-color: rgba(45, 212, 191, 0.4) !important;
+        }
+        
+        &:focus {
+            border-color: #2dd4bf !important;
+            box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.1) !important;
+        }
+    }
+}
+
+// Dark mode for switch
+.dark .el-switch,
+.dark-mode .el-switch,
+[data-theme="dark"] .el-switch {
+    .el-switch__core {
+        background: #334155 !important;
+        border-color: #475569 !important;
+    }
+    
+    &.is-checked .el-switch__core {
+        background: #2dd4bf !important;
+        border-color: #2dd4bf !important;
+    }
+    
+    .el-switch__label {
+        color: #cbd5e1 !important;
+        
+        &.is-active {
+            color: #2dd4bf !important;
+        }
+    }
+}
+
 // Dark mode overlay
 .dark .el-overlay,
 .dark-mode .el-overlay,

@@ -103,7 +103,6 @@
         :member="member"
         :is-selected="selectedMemberId === member.id"
         @select="handleSelect"
-        @view-details="handleViewDetails"
       />
     </div>
 
@@ -168,7 +167,6 @@ const existingPins = computed(() => {
 
 const emit = defineEmits<{
   (e: 'select-member', member: Member): void
-  (e: 'view-details', memberId: string): void
   (e: 'create-user', userData: { pin: string; username: string; avatar: File | null; avatarUrl: string | null; tenantId?: number; selectedTagIds?: number[] }): void
 }>()
 
@@ -242,10 +240,6 @@ const filteredMembers = computed(() => {
 
 const handleSelect = (member: Member) => {
   emit('select-member', member)
-}
-
-const handleViewDetails = (memberId: string) => {
-  emit('view-details', memberId)
 }
 
 const openCreateUserModal = () => {
@@ -536,6 +530,33 @@ const handleCreateUser = (userData: { pin: string; username: string; avatar: Fil
   &::-webkit-scrollbar-thumb {
     background: var(--zen-border-medium);
     border-radius: 2px;
+  }
+}
+
+// Dark mode overrides for Element Plus dropdown
+.dark-mode {
+  :deep(.el-select-dropdown) {
+    background: var(--zen-surface-secondary) !important;
+    border: 1px solid var(--zen-border-medium) !important;
+    box-shadow: var(--zen-shadow-lg) !important;
+  }
+
+  :deep(.el-select-dropdown__item) {
+    color: var(--zen-text-primary) !important;
+    
+    &:hover {
+      background: var(--zen-surface-hover) !important;
+    }
+
+    &.is-selected {
+      color: var(--zen-accent-primary) !important;
+      background: rgba(96, 165, 250, 0.15) !important;
+    }
+  }
+
+  :deep(.el-popper.is-light) {
+    background: var(--zen-surface-secondary) !important;
+    border: 1px solid var(--zen-border-medium) !important;
   }
 }
 </style>

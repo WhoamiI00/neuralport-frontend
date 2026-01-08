@@ -17,7 +17,6 @@
       :selected-device-id="selectedDeviceId"
       @select-member="handleMemberSelect"
       @deselect-member="handleMemberDeselect"
-      @view-details="navigateToUserDetails"
       @create-user="isPoolAdmin ? handlePoolAdminCreateUser($event) : handleCreateUser($event)"
       @edit-vr-name="showEditVrModal = true"
       @manage-tags="showTagManager = true"
@@ -295,11 +294,12 @@
         title=""
         width="800px"
         :close-on-click-modal="false"
-        class="pool-manager-dialog"
+        :class="['pool-manager-dialog', { 'dark-mode': isDark }]"
       >
         <PoolManager 
           v-if="isSuperadmin"
           :devices="superadminDevices"
+          :is-dark="isDark"
           @pool-updated="handlePoolUpdated"
         />
       </el-dialog>
@@ -620,10 +620,6 @@ export default defineComponent({
         
         handleMemberDeselect() {
             this.selectedMemberId = null
-        },
-        
-        navigateToUserDetails(memberId) {
-            this.$router.push(`/user/${memberId}`)
         },
         
         async handleCreateUser(userData) {
@@ -2379,7 +2375,7 @@ export default defineComponent({
 // Pool Manager Dialog - theme-aware styling
 :deep(.pool-manager-dialog) {
   .el-dialog {
-    background: var(--zen-surface);
+    background: var(--zen-surface-elevated);
     border-radius: 16px;
     box-shadow: var(--zen-shadow-xl);
     
@@ -2389,6 +2385,13 @@ export default defineComponent({
     
     .el-dialog__body {
       padding: 0;
+    }
+  }
+  
+  &.dark-mode {
+    .el-dialog {
+      background: rgba(30, 41, 59, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.12);
     }
   }
 }

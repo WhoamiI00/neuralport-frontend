@@ -1,20 +1,5 @@
 <template>
   <div class="user-detail-panel" :class="{ 'dark-mode': isDark }">
-    <!-- Close Button -->
-    <button class="close-panel-btn" @click="$emit('close')" title="Close">
-      <i class="mdi mdi-close"></i>
-    </button>
-
-    <!-- Edit Button -->
-    <button class="edit-panel-btn" @click="openEditModal" title="Edit Member">
-      <i class="mdi mdi-pencil"></i>
-    </button>
-
-    <!-- Export Button -->
-    <button class="export-panel-btn" @click="exportReport" title="Export Report">
-      <i class="mdi mdi-download"></i>
-    </button>
-
     <!-- Loading State -->
     <div v-if="loading" class="loading-container">
       <div class="loader">
@@ -38,6 +23,19 @@
         <div class="profile-row">
           <!-- User Info Card -->
           <div class="profile-card">
+            <!-- Action Buttons -->
+            <div class="profile-actions">
+              <button class="edit-panel-btn" @click="openEditModal" title="Edit Member">
+                <i class="mdi mdi-pencil"></i>
+              </button>
+              <button class="export-panel-btn" @click="exportReport" title="Export Report">
+                <i class="mdi mdi-download"></i>
+              </button>
+              <button class="close-panel-btn" @click="$emit('close')" title="Close">
+                <i class="mdi mdi-close"></i>
+              </button>
+            </div>
+            
             <div class="profile-avatar">
               <img v-if="userData.avatar" :src="userData.avatar" :alt="userData.name" />
               <span v-else class="avatar-initials">{{ getInitials(userData.name) }}</span>
@@ -1228,10 +1226,13 @@ const exportReport = async () => {
     tempContainer.style.width = `${containerWidth}px`
     tempContainer.style.minHeight = `${containerHeight}px`
     tempContainer.style.padding = '40px'
-    tempContainer.style.background = isDark.value ? '#0F172A' : '#FFFFFF'
+    tempContainer.style.background = '#FFFFFF' // Always use light mode for PDF export
     tempContainer.style.zIndex = '-1'
     tempContainer.style.boxSizing = 'border-box'
     tempContainer.style.overflow = 'visible'
+    
+    // Remove dark-mode class to ensure light mode styling
+    tempContainer.classList.remove('dark-mode')
     
     const clone = mainContent.cloneNode(true) as HTMLElement
     clone.style.width = '100%'
@@ -1239,6 +1240,11 @@ const exportReport = async () => {
     clone.style.margin = '0'
     clone.style.padding = '0'
     clone.style.boxSizing = 'border-box'
+    
+    // Remove dark-mode class from clone and all children
+    clone.classList.remove('dark-mode')
+    const darkElements = clone.querySelectorAll('.dark-mode')
+    darkElements.forEach(el => el.classList.remove('dark-mode'))
     
     tempContainer.appendChild(clone)
     document.body.appendChild(tempContainer)
@@ -1420,7 +1426,7 @@ const exportReport = async () => {
       scale: 2,
       useCORS: true,
       allowTaint: true,
-      backgroundColor: isDark.value ? '#0F172A' : '#FFFFFF',
+      backgroundColor: '#FFFFFF', // Always use light mode for PDF export
       logging: false,
       width: containerWidth,
       height: captureHeight,
@@ -1654,14 +1660,25 @@ watch(() => props.userId, () => {
 .user-detail-panel {
   position: relative;
   min-height: 400px;
+  padding-left: 4px;
+  padding-right: 4px;
+
+  @include from-tablet {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  @include from-desktop {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 
-.close-panel-btn {
-  position: absolute;
-  top: $space-3;
-  right: $space-3;
-  width: 40px;
-  height: 40px;
+.close-panel-btn,
+.edit-panel-btn,
+.export-panel-btn {
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--zen-border-medium);
   border-radius: $radius-full;
   background: var(--zen-bg-secondary);
@@ -1671,67 +1688,26 @@ watch(() => props.userId, () => {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  z-index: 10;
+  flex-shrink: 0;
   
+  i { font-size: 18px; }
+}
+
+.close-panel-btn {
   &:hover {
     background: var(--zen-accent-danger);
     border-color: var(--zen-accent-danger);
     color: white;
   }
-  
-  i { font-size: 22px; }
 }
 
-.edit-panel-btn {
-  position: absolute;
-  top: $space-3;
-  right: 110px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--zen-border-medium);
-  border-radius: $radius-full;
-  background: var(--zen-bg-secondary);
-  color: var(--zen-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 10;
-  
-  &:hover {
-    background: var(--zen-accent-teal-alpha, rgba(6, 182, 212, 0.15));
-    border-color: var(--zen-accent-teal);
-    color: var(--zen-accent-teal);
-  }
-  
-  i { font-size: 20px; }
-}
-
+.edit-panel-btn,
 .export-panel-btn {
-  position: absolute;
-  top: $space-3;
-  right: 60px;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--zen-border-medium);
-  border-radius: $radius-full;
-  background: var(--zen-bg-secondary);
-  color: var(--zen-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  z-index: 10;
-  
   &:hover {
     background: var(--zen-accent-teal-alpha, rgba(6, 182, 212, 0.15));
     border-color: var(--zen-accent-teal);
     color: var(--zen-accent-teal);
   }
-  
-  i { font-size: 20px; }
 }
 
 .loading-container,
@@ -1782,25 +1758,33 @@ watch(() => props.userId, () => {
 
 .details-content {
   max-width: 100%;
-  padding: 0;
+  padding: 12px 0;
   position: relative;
   z-index: 1;
+
+  @include from-tablet {
+    padding: 16px 0;
+  }
 }
 
 // Profile Section
 .profile-section {
-  margin-bottom: 0;
+  margin-bottom: 12px;
+
+  @include from-tablet {
+    margin-bottom: 16px;
+  }
 }
 
 .profile-row {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
   align-items: stretch;
   width: 100%;
 
   @include from-tablet {
-    gap: 0;
+    gap: 16px;
   }
 
   @include from-desktop {
@@ -1809,6 +1793,7 @@ watch(() => props.userId, () => {
 }
 
 .profile-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1818,10 +1803,7 @@ watch(() => props.userId, () => {
   background: var(--zen-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--zen-border-glass);
-  border-left: none;
-  border-right: none;
-  border-bottom: none;
-  border-radius: 0;
+  border-radius: $radius-xl;
   box-shadow: none;
   transition: all 0.3s ease;
   width: 100%;
@@ -1832,26 +1814,36 @@ watch(() => props.userId, () => {
     gap: $space-4;
     padding: $space-3 $space-4;
     border: 1px solid var(--zen-border-glass);
-    border-radius: 0;
+    border-radius: $radius-xl;
   }
 
   @include from-desktop {
     flex: 0 0 auto;
-    width: 340px;
-    border-radius: 0;
+    width: 400px;
+    border-radius: $radius-xl;
   }
+}
+
+.profile-actions {
+  position: absolute;
+  top: $space-3;
+  right: $space-3;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
 }
 
 .metrics-row {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
   flex: 1;
   width: 100%;
 
   @include from-tablet {
     flex-direction: row;
-    gap: 0;
+    gap: 16px;
   }
 
   > * {
@@ -1948,7 +1940,15 @@ watch(() => props.userId, () => {
 
 // Charts Section
 .charts-section {
-  margin-bottom: 0;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @include from-tablet {
+    margin-bottom: 16px;
+    gap: 16px;
+  }
 }
 
 // Load More Section
@@ -1959,8 +1959,7 @@ watch(() => props.userId, () => {
   padding: 24px 16px;
   background: var(--zen-surface);
   border: 1px solid var(--zen-border-glass);
-  border-top: none;
-  border-bottom: none;
+  border-radius: $radius-xl;
 }
 
 .load-more-btn {
@@ -2001,24 +2000,20 @@ watch(() => props.userId, () => {
   background: var(--zen-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--zen-border-glass);
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  border-radius: 0;
+  border-radius: $radius-xl;
   overflow: hidden;
-  margin-bottom: 0;
+  margin-bottom: 12px;
   transition: all 0.3s ease;
 
   @include from-tablet {
     border: 1px solid var(--zen-border-glass);
-    border-top: none;
-    border-radius: 0;
+    border-radius: $radius-xl;
     margin-bottom: 0;
   }
 
   &:last-child {
     @include from-tablet {
-      border-radius: 0;
+      border-radius: $radius-xl;
     }
   }
 
@@ -2135,31 +2130,32 @@ watch(() => props.userId, () => {
 }
 
 .chart-body {
-  padding: $space-2;
+  padding: $space-3;
   min-height: 220px;
 
   @include from-tablet {
-    padding: $space-2 $space-3;
+    padding: $space-3 $space-4;
   }
 }
 
 // Sessions Section
 .sessions-section {
-  margin-bottom: 0;
+  margin-bottom: 12px;
+
+  @include from-tablet {
+    margin-bottom: 16px;
+  }
 }
 
 .sessions-card {
   background: var(--zen-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--zen-border-glass);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
+  border-radius: $radius-xl;
   overflow: hidden;
 
   @include from-tablet {
-    border-left: 1px solid var(--zen-border-glass);
-    border-right: 1px solid var(--zen-border-glass);
+    border: 1px solid var(--zen-border-glass);
     border-radius: $radius-xl;
   }
 }

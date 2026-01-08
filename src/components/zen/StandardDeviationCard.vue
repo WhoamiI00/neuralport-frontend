@@ -110,9 +110,7 @@ const trendPoints = computed(() => {
   background: var(--zen-surface);
   backdrop-filter: blur(10px);
   border: 1px solid var(--zen-border-glass);
-  border-left: none;
-  border-right: none;
-  border-radius: 0;
+  border-radius: $radius-xl;
   padding: $space-4 $space-5;
   padding-bottom: $space-5;
   margin-bottom: $space-5;
@@ -138,9 +136,8 @@ const trendPoints = computed(() => {
   }
 
   @media (min-width: $breakpoint-md) {
-    border-left: 1px solid var(--zen-border-glass);
-    border-right: 1px solid var(--zen-border-glass);
-    border-radius: 0;
+    border: 1px solid var(--zen-border-glass);
+    border-radius: $radius-xl;
     margin-bottom: 0;
   }
 

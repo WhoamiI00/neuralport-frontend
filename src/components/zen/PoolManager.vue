@@ -1,5 +1,5 @@
 <template>
-  <div class="pool-manager">
+  <div class="pool-manager" :class="{ 'dark-mode': isDark }">
     <!-- Header -->
     <div class="manager-header">
       <div class="header-title">
@@ -430,9 +430,12 @@ import {
 // Props
 interface Props {
   devices: { id: number; device_id: string; name: string; pool_id?: number }[]
+  isDark?: boolean
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  isDark: false
+})
 
 // Emits
 const emit = defineEmits<{
@@ -754,9 +757,16 @@ watch(() => props.devices, () => {
 
 .pool-manager {
   padding: 20px;
-  background: var(--zen-surface);
-  border-radius: 12px;
+  background: var(--zen-surface-elevated);
+  border-radius: 0;
   color: var(--zen-text-primary);
+  max-height: 70vh;
+  overflow-y: auto;
+  
+  &.dark-mode {
+    background: rgba(30, 41, 59, 0.95);
+    color: #F1F5F9;
+  }
 }
 
 .manager-header {
