@@ -38,6 +38,14 @@
             <p class="page-subtitle">{{ pageSubtitle }}</p>
           </div>
           <div class="header-right">
+            <button 
+              class="assessment-btn"
+              @click="navigateToAssessment"
+              title="Take Performance Assessment"
+            >
+              <i class="mdi mdi-brain"></i>
+              <span>Assessment</span>
+            </button>
             <div class="desktop-only">
               <LanguageToggle />
             </div>
@@ -556,6 +564,10 @@ export default defineComponent({
         }
     },
     methods: {
+        navigateToAssessment() {
+            this.router.push('/assessment')
+        },
+        
         getUserId() {
             if (this.selectedMemberId) {
                 return this.selectedMemberId
@@ -1723,6 +1735,36 @@ export default defineComponent({
     @media (max-width: 767px) {
       display: none;
     }
+  }
+}
+
+.assessment-btn {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-4;
+  background: var(--zen-accent-teal);
+  color: white;
+  border: none;
+  border-radius: $radius-lg;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  i {
+    font-size: 20px;
+  }
+
+  &:hover {
+    background: var(--zen-accent-teal-dark);
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 767px) {
+    span {
+      display: none;
+    }
+    padding: $space-2;
   }
 }
 

@@ -9,6 +9,8 @@ const LoginView = () => import('../views/LoginView.vue')
 const AccountView = () => import('../views/AccountView.vue')
 const StorageDemoView = () => import('../views/StorageDemoView.vue')
 const Dashboard = () => import('../views/Dashboard.vue')
+const AssessmentView = () => import('../views/AssessmentView.vue')
+const AssessmentResultView = () => import('../views/AssessmentResultView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -39,6 +41,18 @@ const router = createRouter({
       path: '/demo',
       name: 'demo',
       component: StorageDemoView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/assessment',
+      name: 'assessment',
+      component: AssessmentView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/assessment/result/:id',
+      name: 'assessment-result',
+      component: AssessmentResultView,
       meta: { requiresAuth: true }
     }
   ]
