@@ -267,16 +267,17 @@ onMounted(async () => {
   // Check authentication status for different user types
   const isSuperadmin = !!localStorage.getItem('superadmin_token')
   const isPoolAdmin = !!localStorage.getItem('pool_admin_token')
-  const isRegularUser = authStore.isAuthenticated && !isSuperadmin && !isPoolAdmin
+  const isVRAdmin = authStore.user?.is_admin === true
+  const isRegularUser = authStore.isAuthenticated && !isSuperadmin && !isPoolAdmin && !isVRAdmin
   
-  // Auto-verify only for regular logged-in users
+  // Auto-verify only for regular logged-in users (VR ID + PIN, no admin role)
   if (isRegularUser && authStore.user) {
     // Regular user - auto-verify with their ID
     store.setPinVerified(true)
     store.setMappedUser(parseInt(authStore.user.id), authStore.user.vr_name || `User ${authStore.user.id}`)
     await store.fetchQuestions()
   } else {
-    // All admins (superadmin, pool admin) must enter PIN
+    // All admins (superadmin, pool admin, VR admin) must enter PIN
     store.reset()
   }
 })
