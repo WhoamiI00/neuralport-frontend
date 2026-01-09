@@ -166,7 +166,6 @@ import { useRouter } from 'vue-router'
 import { useAssessmentStore } from '../stores/assessment'
 import { useAuthStore } from '../stores/auth'
 import { useSuperadminStore } from '../stores/superadmin'
-import { usePoolAdminStore } from '../stores/poolAdmin'
 import { useTheme } from '../composables/useTheme'
 import { storeToRefs } from 'pinia'
 
@@ -174,7 +173,6 @@ const router = useRouter()
 const store = useAssessmentStore()
 const authStore = useAuthStore()
 const superadminStore = useSuperadminStore()
-const poolAdminStore = usePoolAdminStore()
 const { isDark } = useTheme()
 
 const {
