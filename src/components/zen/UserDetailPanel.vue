@@ -710,16 +710,18 @@ const filteredFatigueData = computed(() => {
   if (fatigueViewMode.value === 'day') {
     return filtered.map(item => ({
       date: format(new Date(item.created_at), 'HH:mm'),
-      score: Number(item.score || 0)
+      score: Number(item.score || 0),
+      status: item.status || null
     }))
   } else if (fatigueViewMode.value === 'week') {
     const dayMap = new Map()
     filtered.forEach(item => {
       const dateKey = format(new Date(item.created_at), 'MM/dd')
-      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0 })
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0, statuses: [] })
       const rec = dayMap.get(dateKey)
       rec.sum += Number(item.score || 0)
       rec.count += 1
+      if (item.status) rec.statuses.push(item.status)
     })
     
     const result = []
@@ -731,7 +733,8 @@ const filteredFatigueData = computed(() => {
       const rec = dayMap.get(dateKey)
       result.push({
         date: dateKey,
-        score: rec ? Math.round(rec.sum / rec.count) : 0
+        score: rec ? Math.round(rec.sum / rec.count) : 0,
+        status: rec && rec.statuses.length > 0 ? rec.statuses[0] : null
       })
     }
     return result
@@ -739,17 +742,22 @@ const filteredFatigueData = computed(() => {
     const dayMap = new Map()
     filtered.forEach(item => {
       const dateKey = format(new Date(item.created_at), 'MM/dd')
-      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0 })
+      if (!dayMap.has(dateKey)) dayMap.set(dateKey, { sum: 0, count: 0, statuses: [] })
       const rec = dayMap.get(dateKey)
       rec.sum += Number(item.score || 0)
       rec.count += 1
+      if (item.status) rec.statuses.push(item.status)
     })
     
     const datesWithData = Array.from(dayMap.keys()).sort()
     if (datesWithData.length > 0) {
       return datesWithData.map(dateKey => {
         const rec = dayMap.get(dateKey)
-        return { date: dateKey, score: Math.round(rec.sum / rec.count) }
+        return { 
+          date: dateKey, 
+          score: Math.round(rec.sum / rec.count),
+          status: rec.statuses.length > 0 ? rec.statuses[0] : null
+        }
       })
     }
     return []
@@ -879,9 +887,45 @@ const fatigueTimelineOption = computed<EChartsOption>(() => {
   
   const timeLabels = data.map((d: any) => d.date)
   const scores = data.map((d: any) => d.score)
+  const statuses = data.map((d: any) => d.status)
   
   return {
-    tooltip: { trigger: 'axis', backgroundColor: isDark.value ? '#1E293B' : '#fff', borderColor: gridColor, textStyle: { color: isDark.value ? '#F1F5F9' : '#1E293B' } },
+    tooltip: { 
+      trigger: 'axis', 
+      backgroundColor: isDark.value ? '#1E293B' : '#fff', 
+      borderColor: gridColor, 
+      textStyle: { color: isDark.value ? '#F1F5F9' : '#1E293B' },
+      formatter: (params: any) => {
+        if (!params || !params.length) return ''
+        const dataIndex = params[0].dataIndex
+        const score = scores[dataIndex]
+        const status = statuses[dataIndex]
+        const label = timeLabels[dataIndex]
+        
+        const statusColors: Record<string, string> = {
+          'BeforeMindfulness': '#F59E0B',
+          'AfterMindfulness': '#10B981',
+          'PostMatch': '#8B5CF6',
+          'PreMatch': '#3B82F6'
+        }
+        
+        let html = `<div style="font-weight: 600; margin-bottom: 8px;">${label}</div>`
+        html += `<div style="display: flex; align-items: center; margin-top: 4px;">
+          <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #667EEA; margin-right: 8px;"></span>
+          <span>Fatigue Score: <strong>${score}</strong></span>
+        </div>`
+        
+        if (status) {
+          const statusColor = statusColors[status] || '#94A3B8'
+          html += `<div style="display: flex; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid ${gridColor};">
+            <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; margin-right: 8px;"></span>
+            <span style="font-size: 12px;">${status}</span>
+          </div>`
+        }
+        
+        return html
+      }
+    },
     grid: { top: 40, right: 70, bottom: 40, left: 60 },
     xAxis: { type: 'category', data: timeLabels, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor, rotate: fatigueViewMode.value === 'month' ? 45 : 0 } },
     yAxis: { type: 'value', min: 0, max: 100, name: 'Fatigue Score', nameTextStyle: { color: textColor }, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor }, splitLine: { lineStyle: { color: gridColor, type: 'dashed' } } },

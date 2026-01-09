@@ -1071,8 +1071,9 @@ export default defineComponent({
                         const secondary = Number(item.score ?? 0)
                         const p = Number.isFinite(primary) ? Math.floor(primary) : 0
                         const s = Number.isFinite(secondary) ? Math.floor(secondary) : p
-                        barData.push([t, p])
-                        lineData.push([t, s])
+                        const status = item.status || null
+                        barData.push([t, p, status])
+                        lineData.push([t, s, status])
                         if (Number.isFinite(primary)) {
                             sum += p
                             sumSq += p * p
@@ -1090,13 +1091,15 @@ export default defineComponent({
                         const key = `${y}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`
                         const primary = Number(item.score ?? 0)
                         const secondary = Number(item.score ?? 0)
+                        const status = item.status || null
                         if (!dayMap.has(key)) {
-                            dayMap.set(key, { sumP: 0, sumS: 0, cnt: 0, y, m, day })
+                            dayMap.set(key, { sumP: 0, sumS: 0, cnt: 0, y, m, day, statuses: [] })
                         }
                         const rec = dayMap.get(key)
                         if (Number.isFinite(primary)) { rec.sumP += primary }
                         if (Number.isFinite(secondary)) { rec.sumS += secondary }
                         rec.cnt += 1
+                        if (status) rec.statuses.push(status)
                     }
                     const keys = Array.from(dayMap.keys()).sort()
                     for (const key of keys) {
@@ -1105,8 +1108,10 @@ export default defineComponent({
                         const avgP = Math.floor(rec.sumP / rec.cnt)
                         const avgS = Math.floor(rec.sumS / rec.cnt)
                         const t = Date.UTC(rec.y, rec.m - 1, rec.day, 12, 0, 0)
-                        barData.push([t, avgP])
-                        lineData.push([t, avgS])
+                        // For aggregated data, use the most common status or null
+                        const commonStatus = rec.statuses.length > 0 ? rec.statuses[0] : null
+                        barData.push([t, avgP, commonStatus])
+                        lineData.push([t, avgS, commonStatus])
                         sum += avgP
                         sumSq += avgP * avgP
                         count++
@@ -1172,11 +1177,30 @@ export default defineComponent({
                         let html = `<div style="font-weight: 600; margin-bottom: 8px; color: ${this.isDark ? '#22D3EE' : '#0891B2'}">${timeLabel}</div>`
                         params.forEach(p => {
                             const value = p.data[1]
+                            const status = p.data[2]
+                            
+                            // Define status colors
+                            const statusColors = {
+                                'BeforeMindfulness': '#F59E0B',  // Orange
+                                'AfterMindfulness': '#10B981',   // Green
+                                'PostMatch': '#8B5CF6',          // Purple
+                                'PreMatch': '#3B82F6'            // Blue
+                            }
+                            
                             html += `<div style="display: flex; align-items: center; margin-top: 4px;">
                                 <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p.color}; margin-right: 8px;"></span>
                                 <span style="color: ${this.isDark ? '#CBD5E1' : '#475569'};">Brain Fatigue:</span>
                                 <span style="margin-left: 8px; font-weight: 600; color: ${this.isDark ? '#F1F5F9' : '#1E293B'};">${value}</span>
                             </div>`
+                            
+                            // Add status if present
+                            if (status) {
+                                const statusColor = statusColors[status] || '#94A3B8'
+                                html += `<div style="display: flex; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid ${this.isDark ? '#334155' : '#E2E8F0'};">
+                                    <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${statusColor}; margin-right: 8px;"></span>
+                                    <span style="color: ${this.isDark ? '#94A3B8' : '#64748B'}; font-size: 12px;">${status}</span>
+                                </div>`
+                            }
                         })
                         return html
                     }

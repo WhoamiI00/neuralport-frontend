@@ -184,6 +184,7 @@ export interface Score {
   key: string
   score: number
   created_at: string
+  status?: string | null
 }
 
 export async function listScores(tenantId: number, userId: number): Promise<Score[]> {
