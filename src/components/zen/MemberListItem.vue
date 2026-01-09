@@ -21,6 +21,11 @@
     <!-- Name -->
     <transition name="fade">
       <div class="member-info">
+        <!-- Performance Type Badge -->
+        <div v-if="performanceType" class="performance-badge" :title="performanceType.description">
+          <i class="mdi mdi-lightning-bolt"></i>
+          <span>{{ performanceType.name }}</span>
+        </div>
         <span class="member-name">{{ member.name }}</span>
       </div>
     </transition>
@@ -29,8 +34,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Member } from '../../data/members'
+import { getUserPerformanceType, type PerformanceType } from '../../lib/api'
 
 interface Props {
   member: Member
@@ -48,9 +54,31 @@ defineEmits<{
 // Fallback for broken images
 const imageError = ref(false)
 
+// Performance type state
+const performanceType = ref<PerformanceType | null>(null)
+
 const handleImageError = () => {
   imageError.value = true
 }
+
+// Fetch performance type for the member
+const fetchPerformanceType = async () => {
+  if (!props.member?.id) return
+  
+  try {
+    const response = await getUserPerformanceType(Number(props.member.id))
+    performanceType.value = response.performance_type
+  } catch (err) {
+    performanceType.value = null
+  }
+}
+
+// Fetch performance type when member changes
+watch(() => props.member?.id, (newId) => {
+  if (newId) {
+    fetchPerformanceType()
+  }
+}, { immediate: true })
 
 // Compute initials from name
 const initials = computed(() => {
@@ -122,6 +150,31 @@ const initials = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.performance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(20, 184, 166, 0.3);
+  width: fit-content;
+  
+  i {
+    font-size: 10px;
+  }
+  
+  span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+  }
 }
 
 .member-name {

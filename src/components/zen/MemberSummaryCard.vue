@@ -23,6 +23,15 @@
           <span v-else class="initials">{{ initials }}</span>
         </div>
         <div class="info">
+          <!-- Performance Type Badge -->
+          <div v-if="performanceType" class="performance-type-badge" :title="performanceType.description">
+            <i class="mdi mdi-lightning-bolt"></i>
+            <span>{{ performanceType.name }}</span>
+          </div>
+          <div v-else-if="performanceTypeLoading" class="performance-type-badge loading">
+            <i class="mdi mdi-loading mdi-spin"></i>
+            <span>Loading...</span>
+          </div>
           <h2 class="name">{{ member.name }}</h2>
           <p class="pin" v-if="member.pin">PIN: {{ member.pin }}</p>
           <p class="sessions">{{ formattedSessions }}</p>
@@ -100,13 +109,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Member } from '../../data/members'
 import type { MemberSummary } from '../../data/memberDashboards'
 import { useTheme } from '../../composables/useTheme'
 import { useLanguage } from '../../composables/useLanguage'
 import EditMemberModal from './EditMemberModal.vue'
 import TagSelector from './TagSelector.vue'
+import { getUserPerformanceType, type PerformanceType } from '../../lib/api'
 
 interface Props {
   member: Member
@@ -134,6 +144,10 @@ const isSuperadmin = computed(() => props.isSuperadmin === true)
 // Edit modal state
 const showEditModal = ref(false)
 
+// Performance type state
+const performanceType = ref<PerformanceType | null>(null)
+const performanceTypeLoading = ref(false)
+
 const openEditModal = () => {
   showEditModal.value = true
 }
@@ -145,6 +159,30 @@ const handleUpdateMember = (memberData: { id: string; username: string; avatar: 
 const handleTagsUpdated = () => {
   emit('tags-updated')
 }
+
+// Fetch performance type for the member
+const fetchPerformanceType = async () => {
+  if (!props.member?.id) return
+  
+  performanceTypeLoading.value = true
+  
+  try {
+    const response = await getUserPerformanceType(Number(props.member.id))
+    performanceType.value = response.performance_type
+  } catch (err) {
+    console.warn('Failed to fetch performance type:', err)
+    performanceType.value = null
+  } finally {
+    performanceTypeLoading.value = false
+  }
+}
+
+// Fetch performance type when member changes
+watch(() => props.member?.id, (newId) => {
+  if (newId) {
+    fetchPerformanceType()
+  }
+}, { immediate: true })
 
 // Check if this is a new user with no data
 const isNewUser = computed(() => {
@@ -341,6 +379,29 @@ const latestDateFormatted = computed(() => {
 }
 
 .info {
+  .performance-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+    
+    i {
+      font-size: 14px;
+    }
+    
+    &.loading {
+      background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+      box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+    }
+  }
+
   .name {
     font-size: 1.25rem;
     font-weight: 600;

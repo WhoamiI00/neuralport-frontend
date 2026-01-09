@@ -187,6 +187,18 @@ export interface Score {
   status?: string | null
 }
 
+export interface PerformanceType {
+  key: string
+  name: string
+  description: string
+}
+
+export interface UserPerformanceTypeResponse {
+  performance_type: PerformanceType | null
+  assessed_at: string | null
+  message?: string
+}
+
 export async function listScores(tenantId: number, userId: number): Promise<Score[]> {
   const cacheKey = `listScores_${tenantId}_${userId}`
   
@@ -219,6 +231,18 @@ export async function listTenantScores(tenantId: number): Promise<Score[]> {
     const data = await handleApiResponse(response)
     return data.scores || []
   })
+}
+
+export async function getUserPerformanceType(userId: number): Promise<UserPerformanceTypeResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/assessments/user/${userId}/performance-type/`,
+    {
+      headers: getAuthHeaders(),
+      credentials: 'include'
+    }
+  )
+
+  return handleApiResponse(response)
 }
 
 export async function getLatestScore(tenantId: number, userId: number): Promise<Score> {

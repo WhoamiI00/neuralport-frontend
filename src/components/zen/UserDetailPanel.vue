@@ -41,6 +41,15 @@
               <span v-else class="avatar-initials">{{ getInitials(userData.name) }}</span>
             </div>
             <div class="profile-info">
+              <!-- Performance Type Badge -->
+              <div v-if="performanceType" class="performance-type-badge" :title="performanceType.description">
+                <i class="mdi mdi-lightning-bolt"></i>
+                <span>{{ performanceType.name }}</span>
+              </div>
+              <div v-else-if="performanceTypeLoading" class="performance-type-badge loading">
+                <i class="mdi mdi-loading mdi-spin"></i>
+                <span>Loading...</span>
+              </div>
               <h1 class="user-name">{{ userData.name }}</h1>
               <p class="user-id">PIN: {{ userData.pin }}</p>
               <div class="profile-tags">
@@ -383,6 +392,7 @@ import StandardDeviationCard from './StandardDeviationCard.vue'
 import TagSelector from './TagSelector.vue'
 import TagBadge from './TagBadge.vue'
 import EditMemberModal from './EditMemberModal.vue'
+import { getUserPerformanceType, type PerformanceType } from '../../lib/api'
 
 interface Props {
   userId: string
@@ -420,6 +430,10 @@ const sessionsPerPage = 10
 // Edit modal state
 const showEditModal = ref(false)
 
+// Performance type state
+const performanceType = ref<PerformanceType | null>(null)
+const performanceTypeLoading = ref(false)
+
 const openEditModal = () => {
   showEditModal.value = true
 }
@@ -440,6 +454,24 @@ const handleUpdateMember = async (memberData: { id: string; username: string; av
 // Method to refresh data (can be called by parent after API update)
 const refreshData = async () => {
   await fetchUserData()
+  await fetchPerformanceType()
+}
+
+// Fetch performance type for the user
+const fetchPerformanceType = async () => {
+  if (!props.userId) return
+  
+  performanceTypeLoading.value = true
+  
+  try {
+    const response = await getUserPerformanceType(Number(props.userId))
+    performanceType.value = response.performance_type
+  } catch (err) {
+    console.warn('Failed to fetch performance type:', err)
+    performanceType.value = null
+  } finally {
+    performanceTypeLoading.value = false
+  }
 }
 
 // Expose refresh method to parent
@@ -1691,6 +1723,7 @@ watch(() => props.userId, () => {
     loadingMoreContent.value = false
     storageDataLoaded.value = false
     fetchUserData()
+    fetchPerformanceType()
   }
 }, { immediate: true })
 
@@ -1931,6 +1964,29 @@ watch(() => props.userId, () => {
 
 .profile-info {
   flex: 1;
+
+  .performance-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
+    
+    i {
+      font-size: 14px;
+    }
+    
+    &.loading {
+      background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+      box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+    }
+  }
 
   .user-name {
     font-size: $text-heading-4;
