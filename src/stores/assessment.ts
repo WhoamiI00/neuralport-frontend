@@ -276,19 +276,26 @@ export const useAssessmentStore = defineStore('assessment', () => {
     mappedUserName.value = null
   }
 
-  async function verifyPin(pin: string): Promise<boolean> {
+  async function verifyPin(pin: string, tenantId?: number): Promise<boolean> {
     loading.value = true
     pinError.value = null
     
     try {
       const token = getAuthToken()
+      const requestBody: any = { pin }
+      
+      // Include tenant_id for admin sessions
+      if (tenantId) {
+        requestBody.tenant_id = tenantId
+      }
+      
       const response = await fetch(`${API_BASE_URL}/api/assessments/verify-pin/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
-        body: JSON.stringify({ pin })
+        body: JSON.stringify(requestBody)
       })
       
       const data = await response.json()

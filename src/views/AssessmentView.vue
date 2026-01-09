@@ -8,7 +8,16 @@
 
     <!-- PIN Verification Gate -->
     <div v-else-if="!pinVerified" class="pin-verification-container">
-      <div class="pin-card">
+      <!-- Show message if admin hasn't selected a device -->
+      <div v-if="needsDeviceSelection" class="pin-card">
+        <div class="pin-icon">⚠️</div>
+        <h2>Device Selection Required</h2>
+        <p class="pin-subtitle">Please select a device from the dashboard first</p>
+        <button @click="goBack" class="back-link">← Back to Dashboard</button>
+      </div>
+      
+      <!-- Normal PIN entry -->
+      <div v-else class="pin-card">
         <div class="pin-icon">🎯</div>
         <h2>Who's Taking This Assessment?</h2>
         <p class="pin-subtitle">Enter the team member's PIN to identify them</p>
@@ -152,16 +161,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAssessmentStore } from '../stores/assessment'
 import { useAuthStore } from '../stores/auth'
+import { useSuperadminStore } from '../stores/superadmin'
+import { usePoolAdminStore } from '../stores/poolAdmin'
 import { useTheme } from '../composables/useTheme'
 import { storeToRefs } from 'pinia'
 
 const router = useRouter()
 const store = useAssessmentStore()
 const authStore = useAuthStore()
+const superadminStore = useSuperadminStore()
+const poolAdminStore = usePoolAdminStore()
 const { isDark } = useTheme()
 
 const {
@@ -184,6 +197,24 @@ const {
 const submitting = ref(false)
 const pinInput = ref('')
 const verifying = ref(false)
+
+// Get the current tenant ID for admin sessions (only used if superadmin has selected a device)
+const currentTenantId = computed(() => {
+  const isSuperadmin = !!localStorage.getItem('superadmin_token')
+  
+  if (isSuperadmin) {
+    // Optional: superadmin can select a device to resolve conflicts
+    return superadminStore.selectedDeviceId || null
+  }
+  
+  // Pool admins don't need tenant_id - they search across their pool
+  return null
+})
+
+// Superadmins and pool admins don't need device selection upfront
+const needsDeviceSelection = computed(() => {
+  return false
+})
 
 const scaleLabels: Record<number, string> = {
   1: 'Strongly A',
@@ -242,7 +273,8 @@ async function handlePinSubmit() {
   
   verifying.value = true
   try {
-    const success = await store.verifyPin(pinInput.value)
+    const tenantId = currentTenantId.value || undefined
+    const success = await store.verifyPin(pinInput.value, tenantId)
     if (success) {
       // PIN verified, now load questions
       await store.fetchQuestions()
