@@ -26,7 +26,7 @@
           <i class="mdi mdi-lightning-bolt"></i>
           <span>{{ performanceType.name }}</span>
         </div>
-        <span class="member-name">{{ member.name }}</span>
+        <span class="member-name">{{ formatName(member.name) }}</span>
       </div>
     </transition>
 
@@ -34,9 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { Member } from '../../data/members'
-import { getUserPerformanceType, type PerformanceType } from '../../lib/api'
+import type { PerformanceType } from '../../lib/api'
+import { useNameFormat } from '../../composables/useNameFormat'
 
 interface Props {
   member: Member
@@ -47,6 +48,9 @@ const props = withDefaults(defineProps<Props>(), {
   isSelected: false
 })
 
+// Name formatting based on language
+const { formatName } = useNameFormat()
+
 defineEmits<{
   (e: 'select', member: Member): void
 }>()
@@ -54,35 +58,17 @@ defineEmits<{
 // Fallback for broken images
 const imageError = ref(false)
 
-// Performance type state
-const performanceType = ref<PerformanceType | null>(null)
+// Use performance type from member props (already included in user data)
+const performanceType = computed<PerformanceType | null>(() => props.member?.performance_type || null)
 
 const handleImageError = () => {
   imageError.value = true
 }
 
-// Fetch performance type for the member
-const fetchPerformanceType = async () => {
-  if (!props.member?.id) return
-  
-  try {
-    const response = await getUserPerformanceType(Number(props.member.id))
-    performanceType.value = response.performance_type
-  } catch (err) {
-    performanceType.value = null
-  }
-}
-
-// Fetch performance type when member changes
-watch(() => props.member?.id, (newId) => {
-  if (newId) {
-    fetchPerformanceType()
-  }
-}, { immediate: true })
-
-// Compute initials from name
+// Compute initials from formatted name
 const initials = computed(() => {
-  return props.member.name
+  const displayName = formatName.value(props.member.name)
+  return displayName
     .split(' ')
     .map(n => n[0])
     .join('')

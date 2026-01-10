@@ -55,20 +55,11 @@
                         <button 
                             type="button"
                             class="mode-btn"
-                            :class="{ active: loginMode === 'poolAdmin' }"
-                            @click="loginMode = 'poolAdmin'"
-                        >
-                            <i class="mdi mdi-account-group"></i>
-                            Team Admin
-                        </button>
-                        <button 
-                            type="button"
-                            class="mode-btn"
-                            :class="{ active: loginMode === 'superadmin' }"
-                            @click="loginMode = 'superadmin'"
+                            :class="{ active: loginMode === 'admin' }"
+                            @click="loginMode = 'admin'"
                         >
                             <i class="mdi mdi-shield-account"></i>
-                            Superadmin
+                            Admin Login
                         </button>
                     </div>
 
@@ -148,27 +139,27 @@
                             </Transition>
                         </form>
 
-                        <!-- Pool Admin (Team Admin) Login Form -->
-                        <form v-else-if="loginMode === 'poolAdmin'" key="pool-admin-form" class="auth-form" @submit.prevent="handlePoolAdminLogin">
-                            <h1 class="form-title">Team Admin Portal</h1>
-                            <p class="form-subtitle">Manage your team across devices</p>
+                        <!-- Unified Admin Login Form (Superadmin + Team Admin + VR Admin) -->
+                        <form v-else key="admin-form" class="auth-form" @submit.prevent="handleAdminLogin">
+                            <h1 class="form-title">Admin Portal</h1>
+                            <p class="form-subtitle">Manage your team and devices</p>
 
                             <div class="input-group">
                                 <input 
-                                    type="email" 
-                                    v-model="poolAdminForm.email"
+                                    type="text" 
+                                    v-model="adminForm.identifier"
                                     placeholder=" "
                                     required
-                                    autocomplete="email"
+                                    autocomplete="username"
                                 />
-                                <label>Email Address</label>
+                                <label>Email or Device ID</label>
                                 <span class="input-highlight"></span>
                             </div>
 
                             <div class="input-group">
                                 <input 
-                                    :type="showPoolAdminPassword ? 'text' : 'password'"
-                                    v-model="poolAdminForm.password"
+                                    :type="showAdminLoginPassword ? 'text' : 'password'"
+                                    v-model="adminForm.password"
                                     placeholder=" "
                                     required
                                     autocomplete="current-password"
@@ -178,12 +169,25 @@
                                 <button 
                                     type="button"
                                     class="toggle-password-btn"
-                                    @click="showPoolAdminPassword = !showPoolAdminPassword"
+                                    @click="showAdminLoginPassword = !showAdminLoginPassword"
                                     tabindex="-1"
                                 >
-                                    <i class="mdi" :class="showPoolAdminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
+                                    <i class="mdi" :class="showAdminLoginPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
                                 </button>
                             </div>
+
+                            <!-- Registration fields - commented out
+                            <div v-if="showRegister" class="input-group">
+                                <input 
+                                    type="text"
+                                    v-model="adminForm.name"
+                                    placeholder=" "
+                                    autocomplete="name"
+                                />
+                                <label>Display Name (optional)</label>
+                                <span class="input-highlight"></span>
+                            </div>
+                            -->
 
                             <button 
                                 type="submit" 
@@ -195,77 +199,14 @@
                                 <span v-if="loading" class="btn-loader"></span>
                             </button>
 
-                            <Transition name="error-slide">
-                                <div v-if="error" class="error-message">
-                                    {{ error }}
-                                </div>
-                            </Transition>
-                        </form>
-
-                        <!-- Superadmin Login Form -->
-                        <form v-else key="superadmin-form" class="auth-form" @submit.prevent="handleSuperadminLogin">
-                            <h1 class="form-title">Superadmin Portal</h1>
-                            <p class="form-subtitle">{{ showRegister ? 'Create your superadmin account' : 'Multi-device management access' }}</p>
-
-                            <div class="input-group">
-                                <input 
-                                    type="email" 
-                                    v-model="superadminForm.email"
-                                    placeholder=" "
-                                    required
-                                    autocomplete="email"
-                                />
-                                <label>Email Address</label>
-                                <span class="input-highlight"></span>
-                            </div>
-
-                            <div class="input-group">
-                                <input 
-                                    :type="showSuperadminPassword ? 'text' : 'password'"
-                                    v-model="superadminForm.password"
-                                    placeholder=" "
-                                    required
-                                    autocomplete="current-password"
-                                />
-                                <label>Password</label>
-                                <span class="input-highlight"></span>
-                                <button 
-                                    type="button"
-                                    class="toggle-password-btn"
-                                    @click="showSuperadminPassword = !showSuperadminPassword"
-                                    tabindex="-1"
-                                >
-                                    <i class="mdi" :class="showSuperadminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
-                                </button>
-                            </div>
-
-                            <div v-if="showRegister" class="input-group">
-                                <input 
-                                    type="text"
-                                    v-model="superadminForm.name"
-                                    placeholder=" "
-                                    autocomplete="name"
-                                />
-                                <label>Display Name (optional)</label>
-                                <span class="input-highlight"></span>
-                            </div>
-
-                            <button 
-                                type="submit" 
-                                class="submit-btn" 
-                                :class="{ 'is-loading': loading }"
-                                :disabled="loading"
-                            >
-                                <span class="btn-text">{{ loading ? '' : (showRegister ? 'Create Account' : 'Sign In') }}</span>
-                                <span v-if="loading" class="btn-loader"></span>
-                            </button>
-
+                            <!-- Registration toggle - commented out
                             <div class="toggle-register">
-                                <span>{{ showRegister ? 'Already have an account?' : 'New superadmin?' }}</span>
+                                <span>{{ showRegister ? 'Already have an account?' : 'New admin?' }}</span>
                                 <button type="button" class="link-btn" @click="showRegister = !showRegister">
                                     {{ showRegister ? 'Sign In' : 'Register' }}
                                 </button>
                             </div>
+                            -->
 
                             <Transition name="error-slide">
                                 <div v-if="error" class="error-message">
@@ -301,11 +242,10 @@ const isPageLoaded = ref(false)
 const loading = ref(false)
 const error = ref('')
 
-// Login mode: 'user', 'poolAdmin', or 'superadmin'
-const loginMode = ref<'user' | 'poolAdmin' | 'superadmin'>('user')
-const showRegister = ref(false)
-const showSuperadminPassword = ref(false)
-const showPoolAdminPassword = ref(false)
+// Login mode: 'user' or 'admin' (merged superadmin + team admin)
+const loginMode = ref<'user' | 'admin'>('user')
+// const showRegister = ref(false) // Registration disabled
+const showAdminLoginPassword = ref(false)
 
 // Theme management
 const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
@@ -319,17 +259,11 @@ const loginForm = reactive({
     pin: ''
 })
 
-// Superadmin form data
-const superadminForm = reactive({
-    email: '',
+// Unified Admin form data (for superadmin, team admin, and VR admin)
+const adminForm = reactive({
+    identifier: '', // Can be email (for superadmin/pool admin) or device_id (for VR admin)
     password: '',
-    name: ''
-})
-
-// Pool Admin form data
-const poolAdminForm = reactive({
-    email: '',
-    password: ''
+    name: '' // kept for potential future use
 })
 
 const showAdminSetup = ref(false)
@@ -370,52 +304,85 @@ async function handleLogin() {
     }
 }
 
-// Handle superadmin login/register
-async function handleSuperadminLogin() {
+// Handle unified admin login
+// - If identifier contains '@' -> email-based login (superadmin first, then pool admin)
+// - If identifier has no '@' -> VR admin login (device_id + admin password)
+async function handleAdminLogin() {
     error.value = ''
     loading.value = true
+    
+    const identifier = adminForm.identifier.trim()
+    const isEmailLogin = identifier.includes('@')
+    
     try {
-        if (showRegister.value) {
-            // Register new superadmin
-            await superadminStore.register(
-                superadminForm.email, 
-                superadminForm.password, 
-                superadminForm.name || undefined
-            )
+        if (isEmailLogin) {
+            // Email-based login: try superadmin first, then pool admin
+            try {
+                await superadminStore.login(identifier, adminForm.password)
+                // Superadmin login succeeded
+                router.push('/dashboard')
+                return
+            } catch (superadminError: any) {
+                console.log('Superadmin login failed, trying team admin...', superadminError?.message)
+            }
+            
+            // If superadmin fails, try team admin (pool admin) login
+            const result = await poolAdminStore.login(identifier, adminForm.password)
+            
+            if (!result.success) {
+                // Both logins failed
+                error.value = 'Invalid credentials. Please check your email and password.'
+                return
+            }
+            
+            // Team admin login succeeded
+            router.push('/dashboard')
         } else {
-            // Login existing superadmin
-            await superadminStore.login(superadminForm.email, superadminForm.password)
+            // VR Admin login: device_id + admin password
+            // Use the auth store's signIn with device_id and admin password as PIN
+            const result = await authStore.signIn(identifier, adminForm.password)
+            
+            if (result.needsAdminSetup) {
+                error.value = 'This device needs initial admin setup. Please use Personal Login.'
+                return
+            }
+            
+            // Check if this was actually an admin login
+            if (!authStore.user?.is_admin) {
+                // Logged in as regular user, not admin - sign out and show error
+                await authStore.signOut()
+                error.value = 'Invalid admin credentials. Please check your device ID and admin password.'
+                return
+            }
+            
+            // VR Admin login succeeded
+            router.push('/dashboard')
         }
-        
-        // Redirect to dashboard on success
-        router.push('/dashboard')
-    } catch (e: any) {
-        error.value = e?.message ?? (showRegister.value ? 'Registration failed' : 'Login failed')
-    } finally {
-        loading.value = false
-    }
-}
-
-// Handle pool admin (team admin) login
-async function handlePoolAdminLogin() {
-    error.value = ''
-    loading.value = true
-    try {
-        const result = await poolAdminStore.login(poolAdminForm.email, poolAdminForm.password)
-        
-        if (!result.success) {
-            error.value = result.error || 'Login failed'
-            return
-        }
-        
-        // Redirect to dashboard on success
-        router.push('/dashboard')
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
     } finally {
         loading.value = false
     }
 }
+
+/* Registration handlers - commented out
+async function handleSuperadminRegister() {
+    error.value = ''
+    loading.value = true
+    try {
+        await superadminStore.register(
+            adminForm.email, 
+            adminForm.password, 
+            adminForm.name || undefined
+        )
+        router.push('/dashboard')
+    } catch (e: any) {
+        error.value = e?.message ?? 'Registration failed'
+    } finally {
+        loading.value = false
+    }
+}
+*/
 
 // Page entry animation
 onMounted(() => {

@@ -32,7 +32,7 @@
             <i class="mdi mdi-loading mdi-spin"></i>
             <span>Loading...</span>
           </div>
-          <h2 class="name">{{ member.name }}</h2>
+          <h2 class="name">{{ formatName(member.name) }}</h2>
           <p class="pin" v-if="member.pin">PIN: {{ member.pin }}</p>
           <p class="sessions">{{ formattedSessions }}</p>
           
@@ -109,14 +109,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import type { Member } from '../../data/members'
 import type { MemberSummary } from '../../data/memberDashboards'
 import { useTheme } from '../../composables/useTheme'
 import { useLanguage } from '../../composables/useLanguage'
+import { useNameFormat } from '../../composables/useNameFormat'
 import EditMemberModal from './EditMemberModal.vue'
 import TagSelector from './TagSelector.vue'
-import { getUserPerformanceType, type PerformanceType } from '../../lib/api'
+import type { PerformanceType } from '../../lib/api'
 
 interface Props {
   member: Member
@@ -136,6 +137,7 @@ const emit = defineEmits<{
 
 const { isDark } = useTheme()
 const { t } = useLanguage()
+const { formatName } = useNameFormat()
 
 // Access props for admin/superadmin status
 const isAdmin = computed(() => props.isAdmin === true)
@@ -144,9 +146,9 @@ const isSuperadmin = computed(() => props.isSuperadmin === true)
 // Edit modal state
 const showEditModal = ref(false)
 
-// Performance type state
-const performanceType = ref<PerformanceType | null>(null)
-const performanceTypeLoading = ref(false)
+// Use performance type from member props (already included in user data)
+const performanceType = computed<PerformanceType | null>(() => props.member?.performance_type || null)
+const performanceTypeLoading = ref(false)  // Always false now since we use props
 
 const openEditModal = () => {
   showEditModal.value = true
@@ -160,38 +162,15 @@ const handleTagsUpdated = () => {
   emit('tags-updated')
 }
 
-// Fetch performance type for the member
-const fetchPerformanceType = async () => {
-  if (!props.member?.id) return
-  
-  performanceTypeLoading.value = true
-  
-  try {
-    const response = await getUserPerformanceType(Number(props.member.id))
-    performanceType.value = response.performance_type
-  } catch (err) {
-    console.warn('Failed to fetch performance type:', err)
-    performanceType.value = null
-  } finally {
-    performanceTypeLoading.value = false
-  }
-}
-
-// Fetch performance type when member changes
-watch(() => props.member?.id, (newId) => {
-  if (newId) {
-    fetchPerformanceType()
-  }
-}, { immediate: true })
-
 // Check if this is a new user with no data
 const isNewUser = computed(() => {
   return props.summary.totalSessions === 0
 })
 
-// Compute initials from name
+// Compute initials from formatted name
 const initials = computed(() => {
-  return props.member.name
+  const displayName = formatName.value(props.member.name)
+  return displayName
     .split(' ')
     .map(n => n[0])
     .join('')

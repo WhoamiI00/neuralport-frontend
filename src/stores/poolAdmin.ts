@@ -35,6 +35,11 @@ export interface PoolUser {
     name: string
     color: string
   }>
+  performance_type?: {
+    key: string
+    name: string
+    description: string
+  } | null
 }
 
 export interface PoolTag {

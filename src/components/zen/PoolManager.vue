@@ -165,12 +165,12 @@
                 <img
                   v-if="user.portrait_image"
                   :src="user.portrait_image"
-                  :alt="user.name"
+                  :alt="formatName(user.name)"
                 />
                 <i v-else class="mdi mdi-account"></i>
               </div>
               <div class="user-info">
-                <div class="user-name">{{ user.name }}</div>
+                <div class="user-name">{{ formatName(user.name) }}</div>
                 <div class="user-details">
                   <span class="pin">PIN: {{ user.pin }}</span>
                   <span class="home-device">Root VR: {{ user.home_device }}</span>
@@ -407,6 +407,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useNameFormat } from '../../composables/useNameFormat'
 import {
   listPools,
   createPool,
@@ -441,6 +442,9 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   (e: 'pool-updated'): void
 }>()
+
+// Name formatting
+const { formatName } = useNameFormat()
 
 // State
 const loading = ref(true)

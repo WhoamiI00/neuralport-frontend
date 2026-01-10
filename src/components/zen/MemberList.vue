@@ -122,12 +122,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useLanguage } from '../../composables/useLanguage'
+import { useNameFormat } from '../../composables/useNameFormat'
 import type { Member } from '../../data/members'
 import type { Tag } from '../../lib/api'
 import MemberListItem from './MemberListItem.vue'
 import CreateUserModal from './CreateUserModal.vue'
 
 const { t } = useLanguage()
+const { formatName } = useNameFormat()
 
 interface PoolTag {
   id: number
@@ -231,7 +233,8 @@ const filteredMembers = computed(() => {
     
     const searchTerm = nameSearch.value.toLowerCase().trim()
     return props.members.filter(member => {
-      return member.name?.toLowerCase().includes(searchTerm)
+      const displayName = formatName.value(member.name)
+      return displayName?.toLowerCase().includes(searchTerm)
     })
   }
   

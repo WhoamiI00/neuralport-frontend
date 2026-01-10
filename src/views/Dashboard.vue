@@ -821,7 +821,8 @@ export default defineComponent({
                     name: u.name || u.username || `User ${u.id}`,
                     avatarUrl: u.portrait_image || null,
                     tenantId: u.tenant_id,
-                    tags: u.tags || []
+                    tags: u.tags || [],
+                    performance_type: u.performance_type || null
                 }))
                 
                 // Update global stats
@@ -866,7 +867,8 @@ export default defineComponent({
                         name: u.name || u.username || `User ${u.id}`,
                         avatarUrl: u.portrait_image || null,
                         tenantId: u.tenant_id,
-                        tags: validTags
+                        tags: validTags,
+                        performance_type: u.performance_type || null
                     }
                 })
             } catch (e) {
@@ -1367,7 +1369,8 @@ export default defineComponent({
                             tenantId: user.tenant_id,
                             fatigueScore: 0,
                             status: 'normal',
-                            tags: user.tags || []
+                            tags: user.tags || [],
+                            performance_type: user.performance_type || null
                         }
                     })
                     
@@ -1443,7 +1446,8 @@ export default defineComponent({
                     avatarUrl: u.portrait_image || null,
                     tenantId: u.tenant_id,
                     deviceName: u.device_name,
-                    tags: u.tags || []
+                    tags: u.tags || [],
+                    performance_type: u.performance_type || null
                 }))
                 
                 // Update global stats
@@ -1480,7 +1484,8 @@ export default defineComponent({
                     avatarUrl: u.portrait_image || null,
                     tenantId: u.tenant_id,
                     deviceName: u.device_name,
-                    tags: u.tags || []
+                    tags: u.tags || [],
+                    performance_type: u.performance_type || null
                 }))
                 
                 this.globalStats.totalUsers = this.members.length

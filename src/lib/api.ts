@@ -276,6 +276,7 @@ export interface UserProfile {
   uniform_number?: string | number
   portrait_image?: string
   tags?: Tag[]
+  performance_type?: PerformanceType | null
 }
 
 export async function getUser(userId: number): Promise<UserProfile> {

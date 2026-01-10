@@ -37,8 +37,8 @@
             </div>
             
             <div class="profile-avatar">
-              <img v-if="userData.avatar" :src="userData.avatar" :alt="userData.name" />
-              <span v-else class="avatar-initials">{{ getInitials(userData.name) }}</span>
+              <img v-if="userData.avatar" :src="userData.avatar" :alt="formatName(userData.name)" />
+              <span v-else class="avatar-initials">{{ getInitials(formatName(userData.name)) }}</span>
             </div>
             <div class="profile-info">
               <!-- Performance Type Badge -->
@@ -50,7 +50,7 @@
                 <i class="mdi mdi-loading mdi-spin"></i>
                 <span>Loading...</span>
               </div>
-              <h1 class="user-name">{{ userData.name }}</h1>
+              <h1 class="user-name">{{ formatName(userData.name) }}</h1>
               <p class="user-id">PIN: {{ userData.pin }}</p>
               <div class="profile-tags">
                 <el-tag size="small" v-if="userData.role">{{ userData.role }}</el-tag>
@@ -374,6 +374,7 @@ import { ref, computed, watch } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useTheme } from '@/composables/useTheme'
+import { useNameFormat } from '@/composables/useNameFormat'
 import { useAuthStore } from '@/stores/auth'
 import { useSuperadminStore } from '@/stores/superadmin'
 import { usePoolAdminStore } from '@/stores/poolAdmin'
@@ -414,6 +415,7 @@ const emit = defineEmits<{
 }>()
 
 const { isDark } = useTheme()
+const { formatName } = useNameFormat()
 const authStore = useAuthStore()
 const superadminStore = useSuperadminStore()
 const poolAdminStore = usePoolAdminStore()
@@ -454,12 +456,14 @@ const handleUpdateMember = async (memberData: { id: string; username: string; av
 // Method to refresh data (can be called by parent after API update)
 const refreshData = async () => {
   await fetchUserData()
-  await fetchPerformanceType()
 }
 
-// Fetch performance type for the user
+// Fetch performance type for the user (only if not already included in user data)
 const fetchPerformanceType = async () => {
   if (!props.userId) return
+  
+  // Skip API call if performance_type was already loaded with user data
+  if (performanceType.value !== null) return
   
   performanceTypeLoading.value = true
   
@@ -1596,6 +1600,13 @@ async function fetchUserData() {
         throw new Error('User not found or access denied')
       }
       
+      // Set performance type from user profile if available (avoids separate API call)
+      if (userProfile.performance_type) {
+        performanceType.value = userProfile.performance_type
+      } else {
+        performanceType.value = null
+      }
+      
       // Fetch scores from pool admin API
       scores = await poolAdminStore.fetchUserScores(currentUserId)
     } else {
@@ -1614,6 +1625,13 @@ async function fetchUserData() {
       ])
       userProfile = profile
       scores = scoresData
+      
+      // Set performance type from user profile if available (avoids separate API call)
+      if (userProfile.performance_type) {
+        performanceType.value = userProfile.performance_type
+      } else {
+        performanceType.value = null
+      }
     }
     
     // Process scores without storage data initially
@@ -1722,8 +1740,14 @@ watch(() => props.userId, () => {
     showMoreContent.value = false
     loadingMoreContent.value = false
     storageDataLoaded.value = false
-    fetchUserData()
-    fetchPerformanceType()
+    // Reset performance type before fetching new user
+    performanceType.value = null
+    fetchUserData().then(() => {
+      // Only fetch performance type separately if not already loaded from user data
+      if (performanceType.value === null) {
+        fetchPerformanceType()
+      }
+    })
   }
 }, { immediate: true })
 

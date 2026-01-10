@@ -5,7 +5,7 @@
  * Replace with API calls later: fetch('/api/members')
  */
 
-import type { Tag } from '@/lib/api'
+import type { Tag, PerformanceType } from '@/lib/api'
 
 export interface Member {
   id: string
@@ -19,6 +19,7 @@ export interface Member {
   joinDate?: string
   lastActiveDate?: string
   tags?: Tag[]  // User tags for categorization
+  performance_type?: PerformanceType | null  // Performance type from assessment
 }
 
 export const members: Member[] = [

@@ -45,6 +45,11 @@ export interface DeviceUser {
     color: string
     description?: string
   }>
+  performance_type?: {
+    key: string
+    name: string
+    description: string
+  } | null
 }
 
 export interface DashboardStats {
