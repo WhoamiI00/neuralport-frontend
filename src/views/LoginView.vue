@@ -64,20 +64,20 @@
                     </div>
 
                     <Transition name="form-slide" mode="out-in">
-                        <!-- VR User Login Form -->
+                        <!-- VR User Login Form (Name + PIN) -->
                         <form v-if="loginMode === 'user'" key="user-form" class="auth-form" @submit.prevent="handleLogin">
                             <h1 class="form-title">{{ t('auth.title') }}</h1>
-                            <p class="form-subtitle">{{ showAdminSetup ? t('auth.adminSetupSubtitle') : t('auth.subtitle') }}</p>
+                            <p class="form-subtitle">{{ t('auth.subtitle') }}</p>
 
                             <div class="input-group">
                                 <input 
                                     type="text" 
-                                    v-model="loginForm.deviceId"
+                                    v-model="loginForm.name"
                                     placeholder=" "
                                     required
-                                    autocomplete="off"
+                                    autocomplete="name"
                                 />
-                                <label>{{ t('auth.deviceId') }}</label>
+                                <label>{{ t('auth.name') }}</label>
                                 <span class="input-highlight"></span>
                             </div>
 
@@ -98,26 +98,6 @@
                                     tabindex="-1"
                                 >
                                     <i class="mdi" :class="showPin ? 'mdi-eye-off' : 'mdi-eye'"></i>
-                                </button>
-                            </div>
-
-                            <div v-if="showAdminSetup" class="input-group">
-                                <input 
-                                    :type="showAdminPassword ? 'text' : 'password'"
-                                    v-model="adminPassword"
-                                    placeholder=" "
-                                    required
-                                    autocomplete="off"
-                                />
-                                <label>{{ t('auth.adminPassword') }}</label>
-                                <span class="input-highlight"></span>
-                                <button 
-                                    type="button"
-                                    class="toggle-password-btn"
-                                    @click="showAdminPassword = !showAdminPassword"
-                                    tabindex="-1"
-                                >
-                                    <i class="mdi" :class="showAdminPassword ? 'mdi-eye-off' : 'mdi-eye'"></i>
                                 </button>
                             </div>
 
@@ -253,9 +233,9 @@ const { isDark: isDarkMode, toggleTheme: toggleDarkMode } = useTheme()
 // Language management
 const { t } = useLanguage()
 
-// Login form data
+// Login form data (Personal Login: Name + PIN)
 const loginForm = reactive({
-    deviceId: '',
+    name: '',
     pin: ''
 })
 
@@ -266,37 +246,23 @@ const adminForm = reactive({
     name: '' // kept for potential future use
 })
 
-const showAdminSetup = ref(false)
-const adminPassword = ref('')
+// Admin setup - commented out (no longer used in name-based login)
+// const showAdminSetup = ref(false)
+// const adminPassword = ref('')
 
 // Password visibility toggles
 const showPin = ref(false)
-const showAdminPassword = ref(false)
+// const showAdminPassword = ref(false) // No longer used
 
-// Handle VR user login
+// Handle VR user login (Personal Login: Name + PIN)
 async function handleLogin() {
     error.value = ''
     loading.value = true
     try {
-        const result = await authStore.signIn(
-            loginForm.deviceId, 
-            loginForm.pin,
-            showAdminSetup.value ? adminPassword.value : undefined
-        )
+        await authStore.signInByName(loginForm.name, loginForm.pin)
         
-        if (result.needsAdminSetup) {
-            showAdminSetup.value = true
-            error.value = t('auth.firstUserSetAdmin')
-            loading.value = false
-            return
-        }
-        
-        // Redirect based on user role
-        if (authStore.user?.is_admin) {
-            router.push('/dashboard')  // Admin goes to dashboard for user management
-        } else {
-            router.push((route.query.redirect as string) || '/dashboard')  // Regular users also go to dashboard
-        }
+        // Redirect to dashboard
+        router.push((route.query.redirect as string) || '/dashboard')
     } catch (e: any) {
         error.value = e?.message ?? 'Login failed'
     } finally {

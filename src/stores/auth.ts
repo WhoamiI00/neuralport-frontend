@@ -74,6 +74,36 @@ export const useAuthStore = defineStore('auth', () => {
     return { needsAdminSetup: false }
   }
 
+  // New: Sign in by name + PIN (Personal Login)
+  async function signInByName(name: string, pin: string) {
+    const response = await fetch(`${API_BASE_URL}/api/auth/login-by-name`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: name,
+        pin: pin
+      }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Login failed')
+    }
+
+    const data = await response.json()
+    
+    token.value = data.token
+    user.value = data.user
+    
+    // Persist to localStorage
+    localStorage.setItem('auth_token', data.token)
+    localStorage.setItem('auth_user', JSON.stringify(data.user))
+    
+    return { success: true }
+  }
+
   async function signOut() {
     if (token.value) {
       try {
@@ -147,6 +177,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     initialize,
     signIn,
+    signInByName,
     signOut,
     fetchCurrentUser,
     validateToken,

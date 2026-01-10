@@ -31,7 +31,8 @@
               <button class="export-panel-btn" @click="exportReport" title="Export Report">
                 <i class="mdi mdi-download"></i>
               </button>
-              <button class="close-panel-btn" @click="$emit('close')" title="Close">
+              <!-- Close button only for admins -->
+              <button v-if="isAdmin || isSuperadmin || isPoolAdmin" class="close-panel-btn" @click="$emit('close')" title="Close">
                 <i class="mdi mdi-close"></i>
               </button>
             </div>

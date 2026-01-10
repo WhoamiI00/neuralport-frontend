@@ -18,8 +18,9 @@ export const translations = {
   en: {
     // Auth
     'auth.title': 'VR Access',
-    'auth.subtitle': 'Authenticate with Device ID and PIN',
+    'auth.subtitle': 'Sign in with your Name and PIN',
     'auth.adminSetupSubtitle': 'Set Admin Password',
+    'auth.name': 'Name',
     'auth.deviceId': 'Device ID',
     'auth.pin': 'PIN',
     'auth.adminPassword': 'Admin Password',
@@ -102,8 +103,9 @@ export const translations = {
   ja: {
     // Auth
     'auth.title': 'VRアクセス',
-    'auth.subtitle': 'デバイスIDとPINで認証',
+    'auth.subtitle': '名前とPINでサインイン',
     'auth.adminSetupSubtitle': '管理者パスワードの設定',
+    'auth.name': '名前',
     'auth.deviceId': 'デバイスID',
     'auth.pin': 'PIN',
     'auth.adminPassword': '管理者パスワード',

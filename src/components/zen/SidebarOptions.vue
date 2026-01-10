@@ -63,7 +63,8 @@
           <span class="option-label">
             <span class="vr-label">VR Name</span>
             <span class="vr-value">{{ vrName }}</span>
-            <span v-if="deviceId" class="device-id">ID: {{ deviceId }}</span>
+            <!-- Only show device ID to admins -->
+            <span v-if="deviceId && isAdmin" class="device-id">ID: {{ deviceId }}</span>
           </span>
         </transition>
         <i v-if="isAdmin" class="mdi mdi-pencil edit-icon"></i>
@@ -89,12 +90,16 @@
         v-for="option in options"
         :key="option.id"
         class="option-item"
-        :class="{ 'active': activeOption === option.id }"
-        @click="handleOptionClick(option)"
+        :class="{ 'active': activeOption === option.id, 'coming-soon': option.comingSoon }"
+        @click="!option.comingSoon && handleOptionClick(option)"
+        :disabled="option.comingSoon"
       >
         <i :class="option.icon"></i>
         <transition name="fade">
-          <span class="option-label">{{ option.label }}</span>
+          <span class="option-label">
+            {{ option.label }}
+            <span v-if="option.comingSoon" class="coming-soon-badge">Coming Soon</span>
+          </span>
         </transition>
       </button>
     </nav>
@@ -110,6 +115,7 @@ interface OptionItem {
   label: string
   icon: string
   action?: () => void
+  comingSoon?: boolean
 }
 
 interface Props {
@@ -182,17 +188,20 @@ const options: OptionItem[] = [
   {
     id: 'help',
     label: 'Help',
-    icon: 'mdi mdi-help-circle-outline'
+    icon: 'mdi mdi-help-circle-outline',
+    comingSoon: true
   },
   {
     id: 'settings',
     label: 'Settings',
-    icon: 'mdi mdi-cog-outline'
+    icon: 'mdi mdi-cog-outline',
+    comingSoon: true
   },
   {
     id: 'themes',
     label: 'Themes',
-    icon: 'mdi mdi-palette-outline'
+    icon: 'mdi mdi-palette-outline',
+    comingSoon: true
   },
   {
     id: 'logout',
@@ -398,6 +407,35 @@ const handleOptionClick = (option: OptionItem) => {
       border: 1px solid var(--zen-accent-purple-alpha, rgba(139, 92, 246, 0.3));
     }
   }
+}
+
+// Coming Soon styles
+.option-item.coming-soon {
+  opacity: 0.6;
+  cursor: not-allowed;
+  
+  &:hover {
+    background: transparent;
+    transform: none;
+  }
+  
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.coming-soon-badge {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 // Fade transition
